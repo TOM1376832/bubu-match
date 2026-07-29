@@ -542,13 +542,33 @@ function comboWord(combo){
 }
 /* ---- 连击语音（浏览器语音合成） ---- */
 const COMBO_VOICE=["","不错","很棒","太棒了","超神了","无敌了","布布之王"];
+let zhVoice=null;
+function initVoices(){
+  if(!window.speechSynthesis) return;
+  const pick=()=>{ const vs=speechSynthesis.getVoices()||[]; zhVoice=vs.find(v=>/zh|中文|chinese|cmn/i.test((v.lang||"")+(v.name||"")))||vs[0]||null; };
+  pick();
+  speechSynthesis.onvoiceschanged=pick;
+}
+// 手机浏览器要求语音必须由用户手势“解锁”
+function unlockVoice(){
+  if(!window.speechSynthesis) return;
+  try{
+    speechSynthesis.resume&&speechSynthesis.resume();
+    const u=new SpeechSynthesisUtterance(" ");
+    u.volume=0; u.rate=2;
+    if(zhVoice) u.voice=zhVoice;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
 function speakCombo(combo){
   if(!soundOn||!window.speechSynthesis) return;
   const w=COMBO_VOICE[Math.min(combo-1,COMBO_VOICE.length-1)]; if(!w) return;
   try{
+    speechSynthesis.resume&&speechSynthesis.resume();
     speechSynthesis.cancel();
     const u=new SpeechSynthesisUtterance(w);
     u.lang="zh-CN"; u.rate=1.3; u.pitch=1.6; u.volume=1;
+    if(zhVoice) u.voice=zhVoice;
     speechSynthesis.speak(u);
   }catch(e){}
 }
@@ -1502,7 +1522,7 @@ function buildBg(){
 }
 
 /* ---------------- 启动 ---------------- */
-$("#btn-start").onclick=()=>{ ac(); SFX.click();
+$("#btn-start").onclick=()=>{ ac(); SFX.click(); unlockVoice();
   try{ const d=document.documentElement; if(d.requestFullscreen&&!document.fullscreenElement) d.requestFullscreen().catch(()=>{}); }catch(e){}
   buildMap(); show("#levels"); startBGM("map"); };
 $("#btn-lv-back").onclick=()=>{ SFX.click(); show("#home"); };
@@ -1512,6 +1532,8 @@ window.addEventListener("resize",layout);
 
 (async function boot(){
   buildBg();
+  initVoices();
+  window.addEventListener("pointerdown",function once(){ unlockVoice(); window.removeEventListener("pointerdown",once); },{once:true});
   const bar=$("#loadbar");
   for(let i=0;i<7;i++){
     SPRITES[i]=await makeSprite(SPRITE_DATA[i]);
