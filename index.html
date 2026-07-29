@@ -368,7 +368,7 @@ const LEVELS = [
   {moves:24, colors:6, ice:'checker', goals:[{ice:true},{type:0,n:20}],              stars:[1700,3300,5500]},
   {moves:22, colors:6, ice:'cross',   goals:[{ice:true},{type:2,n:18}],              stars:[2000,3800,6300]},
   {moves:20, colors:6, ice:null,      goals:[{type:5,n:24},{type:1,n:24}],           stars:[2200,4200,7000], shape:'donut', cannons:2},
-  {moves:24, colors:6, ice:'full',    goals:[{ice:true},{type:4,n:22}],              stars:[2500,4700,7800], hard:true},
+  {moves:26, colors:6, ice:'full',    goals:[{ice:true},{type:4,n:22}],              stars:[2500,4700,7800], hard:true},
 ];
 // 第9~1000关程序化生成，每4关一个困难关，每7关一个5色轻松关
 // 玩法递进：15关起传送门，16关起炮弹，110关起云层，130关起锁链，160关起巧克力，200关起金豆荚，300关后组合出现
@@ -397,11 +397,13 @@ for(let i=8;i<1000;i++){
   if((fog||cageN)&&ice==='full') ice='cross'; // 满屏冰会挤掉云层/锁链落点，降为中字冰
   const goals=[];
   if(ice) goals.push({ice:true});
-  goals.push({type:i%colors,n:Math.min(40,16+Math.floor(i*.55)+(hard?6:0))});
-  if(!ice||hard) goals.push({type:(i+3)%colors,n:Math.min(36,14+Math.floor(i*.4))});
+  // 困难关：目标量下调、上限更低，不再额外加量
+  goals.push({type:i%colors,n:Math.min(hard?32:38,16+Math.floor(i*.5)+(hard?0:0))});
+  if(!ice||hard) goals.push({type:(i+3)%colors,n:Math.min(hard?26:33,14+Math.floor(i*.36))});
   if(choco) goals.push({choco:true});
   if(beans) goals.push({bean:true,n:beans});
-  let moves=hard?16+i%3:20+i%4;
+  // 困难关步数反多于普通关：6色+双目标+炮弹干扰，需要更多容错
+  let moves=hard?22+i%3:20+i%4;
   if(ice==='full') moves+=4; // 满屏冰补步数
   if(portals) moves+=2;      // 分裂地形补步数
   if(fog) moves+=3; if(cageN) moves+=3; if(choco) moves+=4; if(beans) moves+=4; // 高阶玩法补步数
