@@ -1,0 +1,14 @@
+{
+  "name": "布布消消乐",
+  "short_name": "布布消消乐",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffe9f3",
+  "theme_color": "#ffe9f3",
+  "icons": [
+    { "src": "img/bubu_6.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "img/bubu_0.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

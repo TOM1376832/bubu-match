@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#ffe9f3">
+<link rel="manifest" href="manifest.json">
 <title>布布消消乐</title>
 <style>
 :root{
@@ -119,7 +120,7 @@ body{
   background:rgba(255,255,255,.55);box-shadow:0 10px 26px rgba(150,110,140,.25), inset 0 0 0 3px rgba(255,255,255,.8);}
 #board-wrap.shake{animation:shake .4s;}
 @keyframes shake{0%,100%{transform:translate(0,0);}20%{transform:translate(-7px,3px) rotate(-.6deg);}40%{transform:translate(6px,-4px) rotate(.5deg);}60%{transform:translate(-5px,-3px);}80%{transform:translate(4px,3px);}}
-#board{position:relative;width:calc(var(--ts)*8);height:calc(var(--ts)*8);
+#board{position:relative;width:calc(var(--ts)*8);height:calc(var(--ts)*8);touch-action:none;
   background:
    linear-gradient(45deg,rgba(255,255,255,.35) 25%,transparent 25%,transparent 75%,rgba(255,255,255,.35) 75%),
    linear-gradient(45deg,rgba(255,255,255,.35) 25%,transparent 25%,transparent 75%,rgba(255,255,255,.35) 75%),
@@ -184,7 +185,7 @@ body{
   background:radial-gradient(circle at 35% 35%,#fff6c9,#ffb52e 45%,#ff5e3d 78%,#c22e10);
   box-shadow:0 0 18px 6px rgba(255,140,40,.85);}
 /* ---------- 棋子 ---------- */
-.tile{position:absolute;left:0;top:0;width:var(--ts);height:var(--ts);z-index:2;cursor:pointer;
+.tile{position:absolute;left:0;top:0;width:var(--ts);height:var(--ts);z-index:2;cursor:pointer;touch-action:none;
   transition:transform .22s cubic-bezier(.3,1.4,.5,1);will-change:transform;}
 .tile .face{position:absolute;inset:5%;border-radius:24%;
   display:flex;align-items:center;justify-content:center;
@@ -1281,6 +1282,7 @@ boardEl.addEventListener("pointermove",e=>{
   if(b.r>=0&&b.r<R&&b.c>=0&&b.c<C) trySwap({r:dragStart.r,c:dragStart.c},b);
   dragStart=null;
 });
+window.addEventListener("pointercancel",()=>{ dragStart=null; });
 window.addEventListener("pointerup",e=>{
   if(!dragStart||busy||gameOver){dragStart=null;return;}
   if(!dragStart.moved){
@@ -1500,7 +1502,9 @@ function buildBg(){
 }
 
 /* ---------------- 启动 ---------------- */
-$("#btn-start").onclick=()=>{ ac(); SFX.click(); buildMap(); show("#levels"); startBGM("map"); };
+$("#btn-start").onclick=()=>{ ac(); SFX.click();
+  try{ const d=document.documentElement; if(d.requestFullscreen&&!document.fullscreenElement) d.requestFullscreen().catch(()=>{}); }catch(e){}
+  buildMap(); show("#levels"); startBGM("map"); };
 $("#btn-lv-back").onclick=()=>{ SFX.click(); show("#home"); };
 $("#btn-home").onclick=()=>{ SFX.click(); buildMap(); show("#levels"); startBGM("map"); };
 $("#btn-sound").onclick=function(){ soundOn=!soundOn; this.textContent=soundOn?"🔊":"🔇"; if(!soundOn&&window.speechSynthesis) speechSynthesis.cancel(); if(soundOn) SFX.click(); };
