@@ -353,8 +353,8 @@ for(let i=8;i<100;i++){
   if(i>=15&&(hard||i%5===0)) cannons=2;
   const goals=[];
   if(ice) goals.push({ice:true});
-  goals.push({type:i%6,n:Math.min(40,16+Math.floor(i*.55)+(hard?6:0))});
-  if(!ice||hard) goals.push({type:(i+3)%6,n:Math.min(36,14+Math.floor(i*.4))});
+  goals.push({type:i%colors,n:Math.min(40,16+Math.floor(i*.55)+(hard?6:0))});
+  if(!ice||hard) goals.push({type:(i+3)%colors,n:Math.min(36,14+Math.floor(i*.4))});
   let moves=hard?16+i%3:20+i%4;
   if(ice==='full') moves+=4; // 满屏冰补步数
   if(portals) moves+=2;      // 分裂地形补步数
