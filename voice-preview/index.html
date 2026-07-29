@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>连击语音试听 - 布布消消乐</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
+body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:linear-gradient(160deg,#ffe9f3,#e6f3ff,#eaffe9);color:#5a4a5e;min-height:100vh;padding:18px 14px 40px;}
+h1{font-size:22px;text-align:center;margin:8px 0 4px;color:#ff6ea0;}
+.tip{text-align:center;font-size:13px;color:#9a8aa0;margin-bottom:18px;}
+.set{background:rgba(255,255,255,.75);border-radius:18px;padding:14px;margin-bottom:16px;box-shadow:0 4px 14px rgba(255,110,160,.12);}
+.set h2{font-size:17px;margin-bottom:4px;}
+.set .desc{font-size:12px;color:#9a8aa0;margin-bottom:10px;}
+.row{display:flex;flex-wrap:wrap;gap:8px;}
+button{border:none;border-radius:14px;padding:10px 14px;font-size:14px;background:#fff;box-shadow:0 2px 6px rgba(90,74,94,.15);color:#5a4a5e;cursor:pointer;}
+button:active{transform:scale(.94);}
+.playall{width:100%;margin-top:10px;background:linear-gradient(90deg,#ff9ec1,#ff6ea0);color:#fff;font-weight:bold;font-size:15px;padding:12px;}
+.pick{width:100%;margin-top:8px;background:linear-gradient(90deg,#7ed6a7,#4db87e);color:#fff;font-weight:bold;font-size:15px;padding:12px;}
+.footer{text-align:center;font-size:13px;color:#9a8aa0;margin-top:10px;}
+#chosen{text-align:center;font-size:16px;color:#4db87e;font-weight:bold;margin-top:12px;min-height:22px;}
+</style>
+</head>
+<body>
+<h1>🎧 连击语音试听</h1>
+<div class="tip">点单条试听；点"模拟连击连播"感受游戏里 2连→7连 的递进效果</div>
+<div id="sets"></div>
+<div id="chosen"></div>
+<div class="footer">选好哪一套，回复我字母（A / B / C / D）就行</div>
+<script>
+const SETS=[
+ {id:"A",name:"A 套 · 英文卡通童声",desc:"Good! / Great! / Amazing! / Excellent! / Awesome! / Unbelievable!（当前线上版本）"},
+ {id:"B",name:"B 套 · 中文活泼女声",desc:"不错！/ 很棒！/ 太棒了！/ 超神了！/ 无敌了！/ 布布之王！"},
+ {id:"C",name:"C 套 · 中文可爱男童声",desc:"不错！/ 很棒！/ 太棒了！/ 超神了！/ 无敌了！/ 布布之王！"},
+ {id:"D",name:"D 套 · 中文俏皮口语",desc:"哇！/ 好棒呀！/ 太厉害啦！/ 无敌啦！/ 你是大神！/ 布布之王！"},
+];
+const LABELS={A:["Good!","Great!","Amazing!","Excellent!","Awesome!","Unbelievable!"],
+              B:["不错！","很棒！","太棒了！","超神了！","无敌了！","布布之王！"],
+              C:["不错！","很棒！","太棒了！","超神了！","无敌了！","布布之王！"],
+              D:["哇！","好棒呀！","太厉害啦！","无敌啦！","你是大神！","布布之王！"]};
+let cur=null;
+function play(src){
+  if(cur){ cur.pause(); cur=null; }
+  const a=new Audio(src); cur=a;
+  a.play().catch(()=>{});
+  return a;
+}
+const box=document.getElementById("sets");
+SETS.forEach(s=>{
+  const d=document.createElement("div"); d.className="set";
+  d.innerHTML=`<h2>${s.name}</h2><div class="desc">${s.desc}</div>`;
+  const row=document.createElement("div"); row.className="row";
+  LABELS[s.id].forEach((lb,i)=>{
+    const b=document.createElement("button"); b.textContent=(i+2)+"连 "+lb;
+    b.onclick=()=>play(`${s.id}${i+1}.mp3`);
+    row.appendChild(b);
+  });
+  d.appendChild(row);
+  const all=document.createElement("button"); all.className="playall"; all.textContent="▶ 模拟连击连播（2连→7连）";
+  all.onclick=()=>{
+    if(cur){ cur.pause(); cur=null; }
+    let i=1;
+    const next=()=>{
+      if(i>6) return;
+      const a=play(`${s.id}${i}.mp3`);
+      a.onended=()=>{ i++; setTimeout(next,180); };
+      a.onerror=()=>{ i++; setTimeout(next,180); };
+    };
+    next();
+  };
+  d.appendChild(all);
+  const pick=document.createElement("button"); pick.className="pick"; pick.textContent="✔ 就选这套 "+s.id;
+  pick.onclick=()=>{ document.getElementById("chosen").textContent="已选择："+s.id+" 套，回复我字母 "+s.id+" 即可"; };
+  d.appendChild(pick);
+  box.appendChild(d);
+});
+</script>
+</body>
+</html>
