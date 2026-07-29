@@ -547,14 +547,14 @@ function initVoices(){}
 // 手机浏览器要求音频必须由用户手势“解锁”
 function unlockVoice(){
   try{
-    if(window.VOICE_DATA&&VOICE_DATA[1]){
+    if(typeof VOICE_DATA!=="undefined"&&VOICE_DATA[1]){
       const a=new Audio(VOICE_DATA[1]); a.volume=0;
       a.play().then(()=>{ a.pause(); }).catch(()=>{});
     }
   }catch(e){}
 }
 function speakCombo(combo){
-  if(!soundOn||!window.VOICE_DATA) return;
+  if(!soundOn||typeof VOICE_DATA==="undefined") return;
   const i=Math.min(combo-1,VOICE_DATA.length-1);
   if(i<1||!VOICE_DATA[i]) return;
   try{
