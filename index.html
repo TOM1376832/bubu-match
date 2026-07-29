@@ -1209,6 +1209,12 @@ async function winSequence(){
     seed.push({r:t.r,c:t.c});
     await sleep(160);
   }
+  // 其余剩余步数快速计到0（分数已在步数奖励中结算）
+  while(movesLeft>0){
+    movesLeft--; updateMovesHUD();
+    if(movesLeft%2===0) SFX.click();
+    await sleep(45);
+  }
   if(seed.length){
     floatText("剩余步数变特效！",wrapEl.clientWidth/2,wrapEl.clientHeight/3,"#ffb52e",24);
     await sleep(400);
