@@ -541,27 +541,49 @@ function comboWord(combo){
   floatEl.appendChild(el); setTimeout(()=>el.remove(),1150);
   speakCombo(combo);
 }
-/* ---- 连击语音（内嵌真人风格语音切片，全浏览器通用） ---- */
-let voiceCur=null;
+/* ---- 连击语音（内嵌语音切片，走 WebAudio 通道，微信等全浏览器通用） ---- */
+const voiceBuf=[];
+let voiceCur=null, voiceLoading=false;
 function initVoices(){}
-// 手机浏览器要求音频必须由用户手势“解锁”
-function unlockVoice(){
-  try{
-    if(typeof VOICE_DATA!=="undefined"&&VOICE_DATA[1]){
-      const a=new Audio(VOICE_DATA[1]); a.volume=0;
-      a.play().then(()=>{ a.pause(); }).catch(()=>{});
-    }
-  }catch(e){}
+// 把 base64 mp3 解码成 WebAudio 缓冲（消除音/BGM 同通道，规避微信 audio 限制）
+async function loadVoiceBuffers(){
+  if(voiceLoading||typeof VOICE_DATA==="undefined") return;
+  voiceLoading=true;
+  const a=ac(); if(!a){ voiceLoading=false; return; }
+  for(let i=1;i<VOICE_DATA.length;i++){
+    if(voiceBuf[i]||!VOICE_DATA[i]) continue;
+    try{
+      const bin=atob(VOICE_DATA[i].split(",")[1]);
+      const bytes=new Uint8Array(bin.length);
+      for(let j=0;j<bin.length;j++) bytes[j]=bin.charCodeAt(j);
+      voiceBuf[i]=await a.decodeAudioData(bytes.buffer);
+    }catch(e){}
+  }
 }
+// 首次用户手势：恢复音频上下文并预解码语音
+function unlockVoice(){ ac(); loadVoiceBuffers(); }
 function speakCombo(combo){
   if(!soundOn||typeof VOICE_DATA==="undefined") return;
   const i=Math.min(combo-1,VOICE_DATA.length-1);
   if(i<1||!VOICE_DATA[i]) return;
+  loadVoiceBuffers();
+  const a=ac();
+  const buf=a&&voiceBuf[i];
+  if(buf){
+    try{
+      const s=a.createBufferSource(), g=a.createGain();
+      s.buffer=buf; g.gain.value=1;
+      s.connect(g); g.connect(a.destination);
+      s.start();
+      return;
+    }catch(e){}
+  }
+  // 兜底：audio 元素播放
   try{
     if(voiceCur) voiceCur.pause();
-    const a=new Audio(VOICE_DATA[i]);
-    voiceCur=a; a.volume=1;
-    a.play().catch(()=>{});
+    const el=new Audio(VOICE_DATA[i]);
+    voiceCur=el; el.volume=1;
+    el.play().catch(()=>{});
   }catch(e){}
 }
 /* ---- 消除棋子飞向目标栏 ---- */
