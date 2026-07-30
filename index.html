@@ -102,9 +102,10 @@ body{
 .icon-btn{border:none;background:#f6eef4;width:38px;height:38px;border-radius:12px;font-size:18px;cursor:pointer;box-shadow:0 3px 0 #e0cede;flex:none;}
 .icon-btn:active{transform:translateY(2px);box-shadow:none;}
 #hud-mid{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0;}
-#goals{display:flex;gap:6px;flex-wrap:wrap;}
-.goal{display:flex;align-items:center;gap:3px;background:#fff0f6;border-radius:12px;padding:2px 8px 2px 3px;font-size:13px;font-weight:800;color:#c2598a;box-shadow:inset 0 0 0 1.5px #ffd3e4;}
+#goals{display:flex;gap:6px;flex-wrap:nowrap;overflow:hidden;height:28px;align-items:center;}
+.goal{display:flex;align-items:center;gap:3px;background:#fff0f6;border-radius:12px;padding:2px 8px 2px 3px;font-size:13px;font-weight:800;color:#c2598a;box-shadow:inset 0 0 0 1.5px #ffd3e4;flex:none;}
 .goal img{width:22px;height:22px;object-fit:contain;}
+.goal span:last-child{min-width:16px;text-align:center;}
 .goal.done{background:#e6f9e8;color:#3f9e4d;box-shadow:inset 0 0 0 1.5px #b2e6bb;}
 .goal .ice-ico{width:20px;height:20px;border-radius:5px;background:linear-gradient(135deg,#cfeaff,#9fd4f5);box-shadow:inset 0 0 0 2px #fff,inset 0 -3px 4px rgba(80,150,200,.4);}
 #starbar{position:relative;height:12px;background:#eee3ec;border-radius:8px;box-shadow:inset 0 2px 3px rgba(0,0,0,.08);}
