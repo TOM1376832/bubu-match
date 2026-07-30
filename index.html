@@ -709,25 +709,45 @@ function setSpecial(t,sp){
   t.el.className="tile t"+t.type+" sp-"+sp;
   t.el.querySelector("img").src = sp==="rainbow" ? SPRITES[RAINBOW_IMG] : SPRITES[t.type];
 }
-/* ---- 连胜奖励 ---- */
+/* ---- 连胜奖励：随连胜数阶梯递增 ---- */
 function streakRewardText(s){
-  if(s>=6) return "彩虹魔力布布+双爆炸布布";
-  if(s>=3) return "彩虹魔力布布+爆炸布布";
+  if(s>=6) return "双彩虹相连+双爆炸+双直线";
+  if(s>=5) return "双彩虹相连+爆炸+双直线";
+  if(s>=4) return "双彩虹相连+爆炸布布";
+  if(s>=3) return "双彩虹相连（交换=全屏清！）";
+  if(s>=2) return "彩虹+爆炸布布";
   if(s>=1) return "彩虹魔力布布";
   return "";
 }
 function applyStreakRewards(){
   const s=save.streak||0; if(s<1) return;
+  const free=t=>t&&!t.sp&&!cageMap[t.r][t.c]&&!fogMap[t.r][t.c];
   const give=sp=>{
     const cand=[];
-    for(let r=0;r<R;r++)for(let c=0;c<C;c++){ const t=board[r][c]; if(t&&!t.sp&&!cageMap[r][c]&&!fogMap[r][c]) cand.push(t); }
+    for(let r=0;r<R;r++)for(let c=0;c<C;c++){ const t=board[r][c]; if(free(t)) cand.push(t); }
     if(!cand.length) return;
     const t=cand[Math.floor(Math.random()*cand.length)];
     setSpecial(t,sp); burst(t.r,t.c,t.type,1.1);
   };
-  give("rainbow");
-  if(s>=3) give("bomb");
+  // 在相邻两格放同款特效（双彩虹相连可一键全屏清）
+  const givePair=sp=>{
+    const pairs=[];
+    for(let r=0;r<R;r++)for(let c=0;c<C;c++){
+      const t=board[r][c]; if(!free(t)) continue;
+      for(const [dr,dc] of [[0,1],[1,0]]){
+        const u=board[r+dr]&&board[r+dr][c+dc];
+        if(free(u)) pairs.push([t,u]);
+      }
+    }
+    if(!pairs.length){ give(sp); give(sp); return; }
+    const [a,b]=pairs[Math.floor(Math.random()*pairs.length)];
+    setSpecial(a,sp); setSpecial(b,sp);
+    burst(a.r,a.c,a.type,1.2); burst(b.r,b.c,b.type,1.2);
+  };
+  if(s>=3) givePair("rainbow"); else give("rainbow");
+  if(s===2||s>=4) give("bomb");
   if(s>=6) give("bomb");
+  if(s>=5){ give("h"); give("v"); }
 }
 /* ---- 地形：异形棋盘 + 重力轨道 + 传送门 ---- */
 function buildTerrain(lv){
