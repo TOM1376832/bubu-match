@@ -208,12 +208,15 @@ body{
 .snail::before{content:"🐌";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   font-size:calc(var(--ts)*.52);animation:snailBob 1.6s ease-in-out infinite;}
 @keyframes snailBob{0%,100%{transform:translateX(-5%);}50%{transform:translateX(5%);}}
-/* 蜗牛轨道：旁边消除点亮，连通后蜗牛滚过 */
-.track{position:absolute;width:var(--ts);height:var(--ts);z-index:3;pointer-events:none;}
-.track::before{content:"";position:absolute;left:7%;top:7%;width:20%;height:20%;border-radius:50%;
-  background:rgba(120,90,140,.4);box-shadow:0 0 0 2px rgba(255,255,255,.65);}
-.track.on::before{background:#7ac74f;box-shadow:0 0 9px 3px rgba(122,199,79,.85);}
-.track.fin::after{content:"🏁";position:absolute;left:0;top:-4%;font-size:calc(var(--ts)*.3);}
+/* 蜗牛轨道：灰方块空槽，旁边消除点亮变绿方块(保持一步) */
+.track{position:absolute;width:var(--ts);height:var(--ts);z-index:1;pointer-events:none;border-radius:14px;
+  background:linear-gradient(145deg,#cfc6d4,#b3a8bc);
+  box-shadow:inset 0 0 0 2px rgba(120,105,130,.55),inset 0 3px 6px rgba(255,255,255,.5),inset 0 -6px 8px rgba(100,85,110,.35);
+  transition:background .2s;}
+.track.on{background:linear-gradient(145deg,#8fdc6a,#5cb83e);
+  box-shadow:inset 0 0 0 2px rgba(60,140,40,.7),inset 0 3px 6px rgba(255,255,255,.5),0 0 10px rgba(110,210,80,.7);}
+.track.fin::after{content:"🏁";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:calc(var(--ts)*.5);filter:drop-shadow(0 1px 2px rgba(0,0,0,.3));}
 /* 定向箭头：固定元素，旁边消除触发整行/列消除，可连锁 */
 .arrow{position:absolute;width:var(--ts);height:var(--ts);z-index:3;pointer-events:none;border-radius:12px;
   background:linear-gradient(145deg,#b9c6ff,#7f96f2);
