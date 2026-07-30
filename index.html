@@ -1179,12 +1179,13 @@ function buildMechanics(lv){
   trackOn=Array.from({length:R},()=>Array(C).fill(false));
   arrowMap=Array.from({length:R},()=>Array(C).fill(0));
   arrowTriggered=new Set();
-  // 蜗牛轨道最先规划：轨道格是空槽不放棋子，其他机制避开轨道格
+  // 蜗牛轨道最先规划：轨道格是空槽不放棋子/不铺冰，其他机制避开轨道格
   if(lv.snail){
     snailTrack=genSnailTrack()||[];
     if(!snailTrack.length){ goalsState=goalsState.filter(g=>!g.snail); snailState={need:0,got:0}; }
     snailTrack.forEach(p=>{
       trackSet.add(key(p.r,p.c));
+      if(iceMap[p.r][p.c]>0){ iceRemain-=iceMap[p.r][p.c]; iceMap[p.r][p.c]=0; } // 轨道格不铺冰
       const t=board[p.r][p.c]; if(t){ board[p.r][p.c]=null; t.el.remove(); }
     });
   }
@@ -1300,35 +1301,32 @@ async function sunBlastIfReady(){
 }
 /* ---- 蜗牛轨道：旁边消除点亮轨道格，格子连起来蜗牛一路滚到终点 ---- */
 function genSnailTrack(){
-  // 只能上下左右相连：从顶部出发，主要向下，偶尔横移1~2格，不重复不斜走
+  // 只能上下左右相连；且新格不得贴着非紧邻的旧路径格 —— 物理上杜绝环形/团聚，
+  // 保证每个轨道格最多2个路径邻居(前后顺序格)，周围必有棋子可点亮
   const K=(r,c)=>r+","+c;
-  for(let attempt=0;attempt<20;attempt++){
+  for(let attempt=0;attempt<30;attempt++){
     const c0=Math.floor(Math.random()*C);
     if(!boardMask[0][c0]) continue;
-    const seen=new Set([K(0,c0)]);
+    const pathKeys=new Set([K(0,c0)]);
     const path=[{r:0,c:c0}];
-    let r=0,c=c0,ok=true;
+    let r=0,c=c0;
+    const okMove=(rr,cc)=>{
+      if(rr<0||rr>=R||cc<0||cc>=C||!boardMask[rr][cc]||pathKeys.has(K(rr,cc))) return false;
+      let adj=0;
+      for(const [dr,dc] of [[1,0],[-1,0],[0,1],[0,-1]]) if(pathKeys.has(K(rr+dr,cc+dc))) adj++;
+      return adj===1; // 只能与当前末尾相邻
+    };
     while(r<R-1){
-      const downOk=boardMask[r+1][c]&&!seen.has(K(r+1,c));
-      let moved=false;
-      if(Math.random()<.45){
-        const dir=Math.random()<.5?-1:1, steps=1+Math.floor(Math.random()*2);
-        for(let i=0;i<steps;i++){
-          const nc=c+dir;
-          if(nc<0||nc>=C||!boardMask[r][nc]||seen.has(K(r,nc))) break;
-          c=nc; path.push({r,c}); seen.add(K(r,c)); moved=true;
-        }
-      }
-      if(downOk){ r++; path.push({r,c}); seen.add(K(r,c)); }
-      else if(!moved){
-        for(const dir of [-1,1]){
-          const nc=c+dir;
-          if(nc>=0&&nc<C&&boardMask[r][nc]&&!seen.has(K(r,nc))){ c=nc; path.push({r,c}); seen.add(K(r,c)); moved=true; break; }
-        }
-        if(!moved){ ok=false; break; }
-      }
+      const cands=[];
+      if(okMove(r+1,c)) cands.push([1,0],[1,0],[1,0]); // 向下权重高
+      if(okMove(r,c-1)) cands.push([0,-1]);
+      if(okMove(r,c+1)) cands.push([0,1]);
+      if(!cands.length) break;
+      const [dr,dc]=cands[Math.floor(Math.random()*cands.length)];
+      r+=dr; c+=dc;
+      path.push({r,c}); pathKeys.add(K(r,c));
     }
-    if(ok&&r===R-1) return path;
+    if(r===R-1) return path;
   }
   // 退化：找一整列无空洞的列直下
   for(let c=0;c<C;c++){
