@@ -384,7 +384,7 @@ body{
   </div>
   <div id="props">
     <button class="prop" data-p="bomb" title="区域炸弹：点选一个格子，炸开3×3区域">💣<span class="pcnt">0</span></button>
-    <button class="prop" data-p="paint" title="染色魔法：点选一个棋子，全盘同色变成目标最缺的颜色">🎨<span class="pcnt">0</span></button>
+    <button class="prop" data-p="paint" title="染色魔法：先点一个棋子选定目标色，再点要染色的棋子，其同色全盘变成目标色">🎨<span class="pcnt">0</span></button>
     <button class="prop" data-p="hammer" title="小锤：敲掉任意一格（冰/锁/云/墨/巧克力）或打章鱼1血">🔨<span class="pcnt">0</span></button>
   </div>
   <div id="board-wrap">
@@ -687,10 +687,12 @@ function floatText(txt,x,y,color="#ff8a3d",size=20){
 /* ===== 关卡内道具 ===== */
 let items={bomb:0,hammer:0,paint:0};
 let itemMode=null;
+let paintTarget=-1;             // 染色目标色(-1=未选,两步操作第一步)
 let turnReward=null;
 function resetLevelItems(){
   items={bomb:0,hammer:0,paint:0};
   itemMode=null;
+  paintTarget=-1;
   turnReward=null;
   selected=null;
   document.querySelectorAll(".tile.sel").forEach(e=>e.classList.remove("sel"));
@@ -744,14 +746,27 @@ function updateItemBar(){
 function selectItem(k){
   if(busy){ toast("动画结算中…"); return; }
   if(items[k]<=0){ toast(k==="bomb"?"本关没有区域炸弹了，可通过消除奖励获得":k==="hammer"?"本关没有小锤了，可通过消除奖励获得":"本关没有染色魔法了，可通过消除奖励获得"); SFX.bad(); return; }
-  itemMode=itemMode===k?null:k; selected=null; document.querySelectorAll(".tile.sel").forEach(e=>e.classList.remove("sel"));
+  itemMode=itemMode===k?null:k; paintTarget=-1; selected=null; document.querySelectorAll(".tile.sel").forEach(e=>e.classList.remove("sel"));
   updateItemBar(); SFX.click();
-  if(itemMode) toast(k==="bomb"?"点击一个格子，炸开周围3×3":k==="hammer"?"点击一个格子敲掉（可破冰/锁/云/墨/巧克力）":"点击一个普通棋子，全场同类变成你的目标色");
+  if(itemMode) toast(k==="bomb"?"点击一个格子，炸开周围3×3":k==="hammer"?"点击一个格子敲掉（可破冰/锁/云/墨/巧克力）":"第一步：点击一个棋子，选定要染成的目标色");
 }
 /* 使用道具（不消耗步数、不触发回合蔓延） */
 async function useItemAt(kind,p){
   if(busy||gameOver) return;
-  if(items[kind]<=0){ itemMode=null; updateItemBar(); return; }
+  if(items[kind]<=0){ itemMode=null; paintTarget=-1; updateItemBar(); return; }
+  // 染色第一步：选定目标色（不消耗道具，保持道具 armed 状态）
+  if(kind==="paint"){
+    const t=board[p.r][p.c];
+    if(!t||t.sp){ toast("请点选一个普通棋子"); return; }
+    if(paintTarget<0||t.type===paintTarget){
+      paintTarget=t.type;
+      document.querySelectorAll(".tile.sel").forEach(e=>e.classList.remove("sel"));
+      t.el.classList.add("sel");
+      toast("目标色定为「"+TYPE_NAMES[t.type]+"」，再点击要染色的棋子");
+      SFX.click();
+      return;
+    }
+  }
   items[kind]--; itemMode=null; updateItemBar();
   busy=true;
   if(kind==="bomb"){
@@ -774,14 +789,10 @@ async function useItemAt(kind,p){
     else toast("这里没有什么可敲的");
     updateGoalsHUD();
   }else if(kind==="paint"){
-    const t=board[p.r][p.c];
-    const refund=()=>{ items.paint++; updateItemBar(); busy=false; scheduleHint(); };
-    if(!t||t.sp){ toast("请点选一个普通棋子"); refund(); return; }
-    let target=-1,best=0;
-    goalsState.forEach(g=>{ if(g.type!==undefined&&g.remain>best){ best=g.remain; target=g.type; } });
-    if(target<0){ toast("本关没有颜色目标"); refund(); return; }
-    if(target===t.type){ toast("已经是目标色啦"); refund(); return; }
-    const from=t.type;
+    // 染色第二步：把所点棋子的同色全盘变成第一步选定的目标色
+    const target=paintTarget; paintTarget=-1;
+    document.querySelectorAll(".tile.sel").forEach(e=>e.classList.remove("sel"));
+    const from=board[p.r][p.c].type;
     for(let r=0;r<R;r++)for(let c=0;c<C;c++){
       const x=board[r][c];
       if(x&&x.type===from&&!x.sp){
