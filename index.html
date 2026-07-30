@@ -177,6 +177,17 @@ body{
 .tile.sp-bean .face::before{content:"🌰";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   font-size:calc(var(--ts)*.56);filter:drop-shadow(0 0 6px rgba(255,215,110,.9));animation:beanGlow 1.2s ease-in-out infinite;}
 @keyframes beanGlow{0%,100%{transform:scale(1);}50%{transform:scale(1.12);}}
+/* 特效棋子专属大图标：不再依赖布布贴图，一眼可辨 */
+.tile.sp-rainbow .face img,.tile.sp-bomb .face img,.tile.sp-cannon .face img,
+.tile.sp-h .face img,.tile.sp-v .face img{display:none;}
+.tile.sp-rainbow .face::after,.tile.sp-bomb .face::after,.tile.sp-cannon .face::after,
+.tile.sp-h .face::after,.tile.sp-v .face::after{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:calc(var(--ts)*.58);z-index:2;pointer-events:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4));}
+.tile.sp-rainbow .face::after{content:"⭐";animation:beanGlow 1.4s ease-in-out infinite;}
+.tile.sp-bomb .face::after{content:"💥";}
+.tile.sp-cannon .face::after{content:"💣";}
+.tile.sp-h .face::after{content:"↔️";}
+.tile.sp-v .face::after{content:"↕️";}
 /* 光柱 / 冲击波 / 闪屏 / 飞行棋子 */
 .beam{position:absolute;pointer-events:none;z-index:6;animation:beamFade .38s ease-out forwards;}
 .beam.h{left:0;width:100%;height:calc(var(--ts)*.95);
