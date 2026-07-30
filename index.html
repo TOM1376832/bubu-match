@@ -177,17 +177,20 @@ body{
 .tile.sp-bean .face::before{content:"🌰";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   font-size:calc(var(--ts)*.56);filter:drop-shadow(0 0 6px rgba(255,215,110,.9));animation:beanGlow 1.2s ease-in-out infinite;}
 @keyframes beanGlow{0%,100%{transform:scale(1);}50%{transform:scale(1.12);}}
-/* 特效棋子专属大图标：不再依赖布布贴图，一眼可辨 */
-.tile.sp-rainbow .face img,.tile.sp-bomb .face img,.tile.sp-cannon .face img,
-.tile.sp-h .face img,.tile.sp-v .face img{display:none;}
-.tile.sp-rainbow .face::after,.tile.sp-bomb .face::after,.tile.sp-cannon .face::after,
-.tile.sp-h .face::after,.tile.sp-v .face::after{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  font-size:calc(var(--ts)*.58);z-index:2;pointer-events:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4));}
-.tile.sp-rainbow .face::after{content:"⭐";animation:beanGlow 1.4s ease-in-out infinite;}
-.tile.sp-bomb .face::after{content:"💥";}
-.tile.sp-cannon .face::after{content:"💣";}
-.tile.sp-h .face::after{content:"↔️";}
-.tile.sp-v .face::after{content:"↕️";}
+/* 大炮：炮筒造型（SVG），区别于爆炸特效 */
+.tile.sp-cannon .face img{display:none;}
+.tile.sp-cannon .face::after{content:"";position:absolute;inset:6%;z-index:2;pointer-events:none;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='24' cy='47' r='10' fill='%238a5a33'/%3E%3Ccircle cx='24' cy='47' r='4.5' fill='%235f3a1d'/%3E%3Cg transform='rotate(-38 34 32)'%3E%3Crect x='12' y='24' width='40' height='17' rx='8.5' fill='%234a4453'/%3E%3Crect x='44' y='22.5' width='10' height='20' rx='5' fill='%232f2a38'/%3E%3C/g%3E%3Ccircle cx='53' cy='13' r='5' fill='%23ffd76e'/%3E%3Ccircle cx='53' cy='13' r='2.4' fill='%23fff3c4'/%3E%3C/svg%3E") center/contain no-repeat;
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.45));}
+/* 星星瓶：消除攒能量，满能量可与任意棋子交换吸入同色全部棋子 */
+.tile.sp-star .face img{display:none;}
+.tile.sp-star .face{background:radial-gradient(circle at 50% 35%,#3d3a55,#241f36 78%);}
+.tile.sp-star .face::after{content:"⭐";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:calc(var(--ts)*.54);z-index:2;pointer-events:none;filter:grayscale(1) brightness(.65);}
+.tile.sp-star.full .face::after{filter:drop-shadow(0 0 8px rgba(255,215,110,.95));animation:beanGlow 1s ease-in-out infinite;}
+.tile.sp-star.full .face{animation:spGlow 1s ease-in-out infinite;}
+.starp{position:absolute;left:0;right:0;bottom:0;text-align:center;font-size:calc(var(--ts)*.2);font-weight:bold;color:#ffd76e;z-index:3;pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.7);}
+.tile.sp-star.full .starp{color:#fff;}
 /* 光柱 / 冲击波 / 闪屏 / 飞行棋子 */
 .beam{position:absolute;pointer-events:none;z-index:6;animation:beamFade .38s ease-out forwards;}
 .beam.h{left:0;width:100%;height:calc(var(--ts)*.95);
@@ -397,6 +400,7 @@ for(let i=8;i<1000;i++){
   if(i>=15&&(hard||i%5===0)) cannons=2;
   // ---- 高阶玩法递进解锁 ----
   let fog=false, cageN=0, choco=0, beans=0;
+  const star=i>=89&&i%5===2;                                        // 90关起：星星瓶（攒能量吸入全色）
   if(i>=109&&i%8===1) fog=true;                                     // 110关起：云层迷雾
   if(i>=129&&i%7===3) cageN=Math.min(14,5+Math.floor(i/50));        // 130关起：锁链牢笼
   if(i>=159&&i%6===4) choco=Math.min(6,3+Math.floor(i/160));        // 160关起：巧克力
@@ -427,7 +431,7 @@ for(let i=8;i<1000;i++){
   // 星级线：100关后放缓增长，保证3星可达
   const base=700+Math.min(i,100)*50+Math.max(0,i-100)*5;
   const m2=i>=100?1.6:1.7, m3=i>=100?2.1:2.6;
-  LEVELS.push({moves, colors, ice, goals, hard, shape, portals, cannons, fog, cage:cageN, choco, beans,
+  LEVELS.push({moves, colors, ice, goals, hard, shape, portals, cannons, fog, cage:cageN, choco, beans, star,
     stars:[base,Math.round(base*m2),Math.round(base*m3)]});
 }
 
@@ -441,6 +445,8 @@ let fogMap = Array.from({length:8},()=>Array(8).fill(false));   // fog[r][c] = �
 let cageMap = Array.from({length:8},()=>Array(8).fill(false));  // cage[r][c] = 锁链牢笼
 let chocoMap = Array.from({length:8},()=>Array(8).fill(false)); // choco[r][c] = 巧克力占位
 let beanState = {need:0,got:0}; // 金豆荚目标
+let starEnergy = 0;             // 星星瓶能量
+const STAR_MAX = 24;            // 星星瓶满能量所需消除数
 let chocoClearedThisTurn = false;
 let tileIdSeq = 1;
 let TS = 64;
@@ -877,6 +883,7 @@ function buildMechanics(lv){
   cageMap=Array.from({length:R},()=>Array(C).fill(false));
   chocoMap=Array.from({length:R},()=>Array(C).fill(false));
   beanState={need:lv.beans||0,got:0};
+  starEnergy=0;
   chocoClearedThisTurn=false;
   const pickN=(n,filter)=>{
     const cells=[];
@@ -895,6 +902,12 @@ function buildMechanics(lv){
     chocoMap[p.r][p.c]=true;
     const t=board[p.r][p.c]; if(t){ board[p.r][p.c]=null; t.el.remove(); }
   });
+  // 星星瓶：随机落一格，消除攒能量，满后与任意棋子交换吸入同色
+  if(lv.star){ const p=pickN(1)[0];
+    if(p){ const t=board[p.r][p.c];
+      if(t){ setSpecial(t,"star");
+        const b=document.createElement("span"); b.className="starp"; t.el.appendChild(b);
+        renderStar(t); } } }
 }
 function renderFog(){
   boardEl.querySelectorAll(".fog").forEach(e=>e.remove());
@@ -1028,7 +1041,7 @@ function initBoard(colors){
 /* ---- 匹配检测 ---- */
 function findGroups(){
   const groups=[];
-  const matchable=t=>t&&t.sp!=="rainbow"&&t.sp!=="bean"&&!fogMap[t.r][t.c];
+  const matchable=t=>t&&t.sp!=="rainbow"&&t.sp!=="bean"&&t.sp!=="star"&&!fogMap[t.r][t.c];
   for(let r=0;r<R;r++){
     let c=0;
     while(c<C){
@@ -1101,7 +1114,7 @@ function effectCells(r,c,tile,powered){
 }
 function mostCommonType(){
   const cnt={};
-  for(let r=0;r<R;r++)for(let c=0;c<C;c++){const t=board[r][c]; if(t&&t.sp!=="rainbow"&&t.sp!=="bean"&&!fogMap[r][c]) cnt[t.type]=(cnt[t.type]||0)+1;}
+  for(let r=0;r<R;r++)for(let c=0;c<C;c++){const t=board[r][c]; if(t&&t.sp!=="rainbow"&&t.sp!=="bean"&&t.sp!=="star"&&!fogMap[r][c]) cnt[t.type]=(cnt[t.type]||0)+1;}
   let best=0,bn=-1;
   for(const k in cnt) if(cnt[k]>bn){bn=cnt[k];best=+k;}
   return best;
@@ -1158,7 +1171,7 @@ async function resolveBoard(prefer){
     for(const [k,tile] of clearMap){
       const [r,c]=k.split(",").map(Number);
       if(board[r][c]!==tile) continue;
-      if(tile.sp==="bean"){ intercepted.add(k); continue; }
+      if(tile.sp==="bean"||tile.sp==="star"){ intercepted.add(k); continue; }
       if(fogMap[r][c]){ fogMap[r][c]=false; intercepted.add(k); burst(r,c,-1,.7); continue; }
       if(cageMap[r][c]){ cageMap[r][c]=false; intercepted.add(k); burst(r,c,2,.9); SFX.ice(); continue; }
     }
@@ -1169,6 +1182,7 @@ async function resolveBoard(prefer){
     for(const [k,tile] of clearMap){
       if(intercepted.has(k)) continue;
       gained+=20;
+      chargeStar(1);
       goalsState.forEach(g=>{ if(g.type===tile.type&&g.remain>0) g.remain--; });
       totalCleared++;
     }
@@ -1280,7 +1294,19 @@ async function trySwap(a,b){
   await sleep(230);
 
   const sp1=t1.sp, sp2=t2.sp;
-  if(sp1==="rainbow"||sp2==="rainbow"){
+  if(sp1==="star"||sp2==="star"){
+    if(starEnergy>=STAR_MAX){ await handleStarSwap(t1,t2); }
+    else{
+      // 能量未满：换回，不消耗步数
+      board[a.r][a.c]=t1; board[b.r][b.c]=t2;
+      [t1.r,t1.c,t2.r,t2.c]=[a.r,a.c,b.r,b.c];
+      placeTile(t1); placeTile(t2);
+      floatText("⭐能量未满 "+Math.floor(starEnergy/STAR_MAX*100)+"%",wrapEl.clientWidth/2,wrapEl.clientHeight/3,"#9a8aa0",16);
+      SFX.bad(); await sleep(230);
+      busy=false; scheduleHint();
+      return;
+    }
+  }else if(sp1==="rainbow"||sp2==="rainbow"){
     await handleRainbowSwap(t1,t2);
   }else if(sp1==="cannon"||sp2==="cannon"){
     // 交换炮弹：朝交换方向开炮（无需凑对）
@@ -1321,7 +1347,7 @@ async function clearAndSettle(seed,label,perTile,extraTiles){
   for(const [k,tile] of clearMap){
     const [r,c]=k.split(",").map(Number);
     if(board[r][c]===tile){
-      if(tile.sp==="bean"){ intercepted.add(k); continue; }
+      if(tile.sp==="bean"||tile.sp==="star"){ intercepted.add(k); continue; }
       if(fogMap[r][c]){ fogMap[r][c]=false; intercepted.add(k); burst(r,c,-1,.7); continue; }
       if(cageMap[r][c]){ cageMap[r][c]=false; intercepted.add(k); burst(r,c,2,.9); SFX.ice(); continue; }
     }
@@ -1334,6 +1360,7 @@ async function clearAndSettle(seed,label,perTile,extraTiles){
     if(board[r][c]===tile) board[r][c]=null;
     goalsState.forEach(g=>{ if(g.type===tile.type&&g.remain>0) g.remain--; });
     gained+=perTile;
+    chargeStar(1);
     // 吸入动画：棋子螺旋飞向中心并缩小消失
     const dx=cxp-(c*TS+TS/2), dy=cyp-(r*TS+TS/2);
     const dist=Math.hypot(dx,dy);
@@ -1359,6 +1386,30 @@ async function clearAndSettle(seed,label,perTile,extraTiles){
   for(const [k,tile] of clearMap) if(!intercepted.has(k)) tile.el.remove();
   await collapseAndRefill();
   await resolveBoard(null);
+}
+
+/* ---- 星星瓶：消除攒能量，满能量与任意棋子交换吸入同色 ---- */
+function findStarTile(){ for(let r=0;r<R;r++)for(let c=0;c<C;c++){ const t=board[r][c]; if(t&&t.sp==="star") return t; } return null; }
+function renderStar(st){
+  const b=st&&st.el.querySelector(".starp"); if(!b) return;
+  const full=starEnergy>=STAR_MAX;
+  b.textContent=full?"MAX":Math.floor(starEnergy/STAR_MAX*100)+"%";
+  st.el.classList.toggle("full",full);
+}
+function chargeStar(n){
+  const st=findStarTile(); if(!st||starEnergy>=STAR_MAX) return;
+  starEnergy=Math.min(STAR_MAX,starEnergy+n);
+  renderStar(st);
+  if(starEnergy>=STAR_MAX){ SFX.streak(); floatText("⭐星星能量满！与任意棋子交换",wrapEl.clientWidth/2,wrapEl.clientHeight/3,"#ffd76e",20); }
+}
+async function handleStarSwap(t1,t2){
+  const star=t1.sp==="star"?t1:t2, other=star===t1?t2:t1;
+  consumeMove();
+  SFX.rainbow(); shakeBoard(); flashScreen();
+  const seed=[{r:other.r,c:other.c}];
+  for(let r=0;r<R;r++)for(let c=0;c<C;c++){ const t=board[r][c]; if(t&&t.type===other.type&&t.sp!=="star") seed.push({r,c}); }
+  starEnergy=0; renderStar(star);
+  await clearAndSettle(seed,"星星吸入！",30);
 }
 
 /* ---- 彩虹布布交换 ---- */
@@ -1526,8 +1577,8 @@ function persist(){ try{localStorage.setItem("bubumatch_save",JSON.stringify(sav
 
 /* ---- 可行步检测 & 提示 & 洗牌 ---- */
 function runAt(r,c){
-  const t=board[r][c]; if(!t||t.sp==="rainbow"||t.sp==="bean"||fogMap[r][c]) return false;
-  const ok=(rr,cc)=>{ const x=board[rr][cc]; return x&&x.type===t.type&&x.sp!=="rainbow"&&x.sp!=="bean"&&!fogMap[rr][cc]; };
+  const t=board[r][c]; if(!t||t.sp==="rainbow"||t.sp==="bean"||t.sp==="star"||fogMap[r][c]) return false;
+  const ok=(rr,cc)=>{ const x=board[rr][cc]; return x&&x.type===t.type&&x.sp!=="rainbow"&&x.sp!=="bean"&&x.sp!=="star"&&!fogMap[rr][cc]; };
   let h=1,v=1;
   for(let i=1;c-i>=0&&ok(r,c-i);i++)h++;
   for(let i=1;c+i<C&&ok(r,c+i);i++)h++;
@@ -1537,10 +1588,10 @@ function runAt(r,c){
 }
 function findPossibleMove(){
   const blocked=(r,c)=>cageMap[r][c]||fogMap[r][c];
-  // 彩虹/炮弹存在即可行
+  // 彩虹/炮弹/满能量星星存在即可行
   for(let r=0;r<R;r++)for(let c=0;c<C;c++){
     const t=board[r][c];
-    if(t&&(t.sp==="rainbow"||t.sp==="cannon")&&!blocked(r,c)&&((c+1<C&&board[r][c+1]&&!blocked(r,c+1))||(r+1<R&&board[r+1][c]&&!blocked(r+1,c)))) return {a:{r,c},b:c+1<C&&board[r][c+1]&&!blocked(r,c+1)?{r,c:c+1}:{r:r+1,c}};
+    if(t&&(t.sp==="rainbow"||t.sp==="cannon"||(t.sp==="star"&&starEnergy>=STAR_MAX))&&!blocked(r,c)&&((c+1<C&&board[r][c+1]&&!blocked(r,c+1))||(r+1<R&&board[r+1][c]&&!blocked(r+1,c)))) return {a:{r,c},b:c+1<C&&board[r][c+1]&&!blocked(r,c+1)?{r,c:c+1}:{r:r+1,c}};
   }
   for(let r=0;r<R;r++)for(let c=0;c<C;c++){
     if(blocked(r,c)) continue;
@@ -1550,7 +1601,7 @@ function findPossibleMove(){
       if(r2>=R||c2>=C||blocked(r2,c2)) continue;
       const t1=board[r][c],t2=board[r2][c2];
       if(!t1||!t2) continue;
-      if(t1.sp&&t2.sp&&t1.sp!=="bean"&&t2.sp!=="bean") return {a:{r,c},b:{r:r2,c:c2}};
+      if(t1.sp&&t2.sp&&t1.sp!=="bean"&&t2.sp!=="bean"&&(t1.sp!=="star"||starEnergy>=STAR_MAX)&&(t2.sp!=="star"||starEnergy>=STAR_MAX)) return {a:{r,c},b:{r:r2,c:c2}};
       board[r][c]=t2;board[r2][c2]=t1;
       const ok=runAt(r,c)||runAt(r2,c2);
       board[r][c]=t1;board[r2][c2]=t2;
