@@ -1997,7 +1997,7 @@ function updateGoalsHUD(){
     for(let i=0;i<sig.length;i++) if(sig[i]==="1"&&lastGoalSig[i]==="0"){ SFX.goal(); break; }
   lastGoalSig=sig;
 }
-function shakeBoard(){ wrapEl.classList.remove("shake"); wrapEl.getBoundingClientRect(); wrapEl.classList.add("shake"); }
+function shakeBoard(){ /* 屏幕震动已禁用：连锁引爆时会反复抖动，体验不佳（如需恢复轻柔版可还原） */ }
 
 /* ---------------- 界面流程 ---------------- */
 function show(id){ document.querySelectorAll(".screen").forEach(s=>s.classList.add("hidden")); $(id).classList.remove("hidden"); }
