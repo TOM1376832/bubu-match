@@ -1817,19 +1817,23 @@ function renderStar(st){
   st.el.classList.toggle("full",full);
 }
 function chargeStar(n){
+  if(starSucking) return; // 吸入自身造成的消除不回充
   const st=findStarTile(); if(!st||starEnergy>=STAR_MAX) return;
   starEnergy=Math.min(STAR_MAX,starEnergy+n);
   renderStar(st);
   if(starEnergy>=STAR_MAX){ SFX.streak(); floatText("⭐星星能量满！与任意棋子交换",wrapEl.clientWidth/2,wrapEl.clientHeight/3,"#ffd76e",20); }
 }
+let starSucking=false;
 async function handleStarSwap(t1,t2){
   const star=t1.sp==="star"?t1:t2, other=star===t1?t2:t1;
   consumeMove();
   SFX.rainbow(); shakeBoard(); flashScreen();
   const seed=[{r:other.r,c:other.c}];
   for(let r=0;r<R;r++)for(let c=0;c<C;c++){ const t=board[r][c]; if(t&&t.type===other.type&&t.sp!=="star") seed.push({r,c}); }
-  starEnergy=0; renderStar(star);
+  starSucking=true;
   await clearAndSettle(seed,"星星吸入！",30);
+  starSucking=false;
+  starEnergy=0; renderStar(star);
 }
 
 /* ---- 彩虹布布交换 ---- */
