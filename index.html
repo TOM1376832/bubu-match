@@ -118,9 +118,18 @@ body{
 /* ---------- 棋盘 ---------- */
 #board-wrap{position:relative;margin-top:12px;padding:10px;border-radius:26px;
   background:rgba(255,255,255,.55);box-shadow:0 10px 26px rgba(150,110,140,.25), inset 0 0 0 3px rgba(255,255,255,.8);}
+/* 道具栏 */
+#props{display:flex;gap:10px;justify-content:center;margin-top:10px;}
+.prop{position:relative;width:58px;height:46px;border:none;border-radius:14px;font-size:22px;background:rgba(255,255,255,.85);
+  box-shadow:0 3px 8px rgba(90,74,94,.18);cursor:pointer;transition:transform .12s;}
+.prop:active{transform:scale(.92);}
+.prop .pcnt{position:absolute;right:-4px;top:-6px;min-width:20px;height:20px;border-radius:10px;background:#ff6ea0;color:#fff;
+  font-size:12px;font-weight:800;line-height:20px;text-align:center;padding:0 4px;box-shadow:0 2px 4px rgba(255,110,160,.4);}
+.prop.armed{outline:3px solid #ffb52e;transform:scale(1.08);box-shadow:0 0 14px rgba(255,181,46,.7);}
+.prop.empty{opacity:.4;filter:grayscale(.8);}
 #board-wrap.shake{animation:shake .4s;}
 @keyframes shake{0%,100%{transform:translate(0,0);}20%{transform:translate(-7px,3px) rotate(-.6deg);}40%{transform:translate(6px,-4px) rotate(.5deg);}60%{transform:translate(-5px,-3px);}80%{transform:translate(4px,3px);}}
-#board{position:relative;width:calc(var(--ts)*8);height:calc(var(--ts)*8);touch-action:none;
+#board{position:relative;width:calc(var(--ts)*8);height:calc(var(--ts)*12);touch-action:none;
   background:
    linear-gradient(45deg,rgba(255,255,255,.35) 25%,transparent 25%,transparent 75%,rgba(255,255,255,.35) 75%),
    linear-gradient(45deg,rgba(255,255,255,.35) 25%,transparent 25%,transparent 75%,rgba(255,255,255,.35) 75%),
@@ -368,6 +377,11 @@ body{
       <div id="score-label">分数 <span id="score">0</span></div>
     </div>
   </div>
+  <div id="props">
+    <button class="prop" data-p="bomb" title="区域炸弹：点选一个格子，炸开3×3区域">💣<span class="pcnt">0</span></button>
+    <button class="prop" data-p="paint" title="染色魔法：点选一个棋子，全盘同色变成目标最缺的颜色">🎨<span class="pcnt">0</span></button>
+    <button class="prop" data-p="hammer" title="小锤：敲掉任意一格（冰/锁/云/墨/巧克力）或打章鱼1血">🔨<span class="pcnt">0</span></button>
+  </div>
   <div id="board-wrap">
     <div id="board"></div>
     <canvas id="fx"></canvas>
@@ -384,20 +398,20 @@ body{
 /* ============================================================
    布布消消乐  —— 对标开心消消乐核心玩法
    ============================================================ */
-const R = 8, C = 8;                 // 棋盘行列
+const R = 12, C = 8;                // 棋盘行列（12行x8列，竖屏铺满）
 const TILE_TYPES = 6;               // 普通棋子种类(最多)
 const RAINBOW_IMG = 6;              // bubu_6 作为彩虹魔力布布
 const TYPE_NAMES = ["小棕","一二","蜜桃","小紫","布丁","小黄"];
 
 const LEVELS = [
-  {moves:26, colors:5, ice:null,      goals:[{type:0,n:14},{type:2,n:14}],          stars:[800,1600,2800]},
-  {moves:24, colors:5, ice:null,      goals:[{type:1,n:16},{type:4,n:16}],          stars:[1000,2000,3400]},
-  {moves:24, colors:6, ice:null,      goals:[{type:3,n:18},{type:5,n:18}],          stars:[1300,2500,4200]},
-  {moves:22, colors:6, ice:'ring',    goals:[{ice:true}],                            stars:[1500,2900,4800], hard:true},
-  {moves:24, colors:6, ice:'checker', goals:[{ice:true},{type:0,n:20}],              stars:[1700,3300,5500]},
-  {moves:22, colors:6, ice:'cross',   goals:[{ice:true},{type:2,n:18}],              stars:[2000,3800,6300]},
-  {moves:20, colors:6, ice:null,      goals:[{type:5,n:24},{type:1,n:24}],           stars:[2200,4200,7000], shape:'donut', cannons:2},
-  {moves:26, colors:6, ice:'full',    goals:[{ice:true},{type:4,n:22}],              stars:[2500,4700,7800], hard:true},
+  {moves:30, colors:5, ice:null,      goals:[{type:0,n:18},{type:2,n:18}],          stars:[800,1600,2800]},
+  {moves:28, colors:5, ice:null,      goals:[{type:1,n:20},{type:4,n:20}],          stars:[1000,2000,3400]},
+  {moves:28, colors:6, ice:null,      goals:[{type:3,n:22},{type:5,n:22}],          stars:[1300,2500,4200]},
+  {moves:27, colors:6, ice:'ring',    goals:[{ice:true}],                            stars:[1500,2900,4800], hard:true},
+  {moves:28, colors:6, ice:'checker', goals:[{ice:true},{type:0,n:24}],              stars:[1700,3300,5500]},
+  {moves:26, colors:6, ice:'cross',   goals:[{ice:true},{type:2,n:22}],              stars:[2000,3800,6300]},
+  {moves:26, colors:6, ice:null,      goals:[{type:5,n:28},{type:1,n:28}],           stars:[2200,4200,7000], shape:'donut', cannons:2},
+  {moves:32, colors:6, ice:'full',    goals:[{ice:true},{type:4,n:26}],              stars:[2500,4700,7800], hard:true},
 ];
 // 第9~1000关程序化生成，每4关一个困难关，每7关一个5色轻松关
 // 全部玩法（传送门/炮弹/云层/锁链/巧克力/金豆荚/星星瓶）从前期开始全局均匀循环分布
@@ -410,7 +424,7 @@ for(let i=8;i<1000;i++){
   let shape=null, portals=null, cannons=0;
   if(i>=10&&i%6===2) shape=["diamond","donut","corners","cross"][Math.floor(i/6)%4];
   // 传送门（从第11关起，每隔10关一个分裂地形）
-  if(i>=10&&i%10===4){ shape="split"; portals=[{in:[3,0],out:[5,4]},{in:[3,1],out:[5,5]}]; }
+  if(i>=10&&i%10===4){ shape="split"; portals=[{in:[R/2-1,0],out:[R/2+1,4]},{in:[R/2-1,1],out:[R/2+1,5]}]; }
   // 炮弹布布（从第13关起，困难关和每5关配置）
   if(i>=12&&(hard||i%5===0)) cannons=2;
   // ---- 高阶玩法：全局均匀分布，周期循环出现 ----
@@ -431,9 +445,9 @@ for(let i=8;i<1000;i++){
   if(ice) goals.push({ice:true});
   // 困难关：目标量下调、上限更低，不再额外加量
   // 异形棋盘按可玩面积等比缩减目标（格少=>各色棋子出现少）
-  const areaScale=(shape?({diamond:40,donut:60,corners:48,cross:28,split:52}[shape]||64):64)/64;
-  let g1=Math.min(hard?32:38,16+Math.floor(i*.5));
-  let g2=Math.min(hard?26:33,14+Math.floor(i*.36));
+  const areaScale=(shape?({diamond:56,donut:92,corners:80,cross:36,split:84}[shape]||96):96)/96;
+  let g1=Math.min(hard?45:52,Math.round((16+Math.floor(i*.5))*1.4));
+  let g2=Math.min(hard?36:46,Math.round((14+Math.floor(i*.36))*1.4));
   if(areaScale<1){ g1=Math.max(10,Math.round(g1*areaScale)); g2=Math.max(8,Math.round(g2*areaScale)); }
   goals.push({type:i%colors,n:g1});
   if(!ice||hard) goals.push({type:(i+3)%colors,n:g2});
@@ -442,7 +456,7 @@ for(let i=8;i<1000;i++){
   if(octo) goals.push({octo:true});
   // 困难关步数反多于普通关：6色+双目标+炮弹干扰，需要更多容错
   let moves=hard?22+i%3:20+i%4;
-  if(ice==='full') moves+=4; // 满屏冰补步数
+  if(ice==='full') moves+=6; // 满屏冰补步数
   if(portals) moves+=2;      // 分裂地形补步数
   if(fog) moves+=3; if(cageN) moves+=3; if(choco) moves+=4; if(beans) moves+=4; if(octo) moves+=4; // 高阶玩法补步数
   // 星级线：100关后放缓增长，保证3星可达
@@ -458,14 +472,14 @@ let boardMask = [];        // boardMask[r][c] = 可玩格
 let chains = [];           // 重力轨道（含传送门合并）
 let iceMap = [];           // ice[r][c] = 0|1|2
 let iceEls = [];
-let fogMap = Array.from({length:8},()=>Array(8).fill(false));   // fog[r][c] = 云层遮蔽
-let cageMap = Array.from({length:8},()=>Array(8).fill(false));  // cage[r][c] = 锁链牢笼
-let chocoMap = Array.from({length:8},()=>Array(8).fill(false)); // choco[r][c] = 巧克力占位
+let fogMap = Array.from({length:R},()=>Array(C).fill(false));   // fog[r][c] = 云层遮蔽
+let cageMap = Array.from({length:R},()=>Array(C).fill(false));  // cage[r][c] = 锁链牢笼
+let chocoMap = Array.from({length:R},()=>Array(C).fill(false)); // choco[r][c] = 巧克力占位
 let beanState = {need:0,got:0}; // 金豆荚目标
 let starEnergy = 0;             // 星星瓶能量
 const STAR_MAX = 24;            // 星星瓶满能量所需消除数
-let octoMap = Array.from({length:8},()=>Array(8).fill(false));  // 章鱼坐镇格
-let inkMap = Array.from({length:8},()=>Array(8).fill(false));   // 墨汁覆盖格（逻辑复用云层）
+let octoMap = Array.from({length:R},()=>Array(C).fill(false));  // 章鱼坐镇格
+let inkMap = Array.from({length:R},()=>Array(C).fill(false));   // 墨汁覆盖格（逻辑复用云层）
 let octoHP = 0;                 // 章鱼剩余生命
 let turnCount = 0;              // 回合计数（章鱼每2回合喷墨）
 let chocoClearedThisTurn = false;
@@ -665,6 +679,63 @@ function floatText(txt,x,y,color="#ff8a3d",size=20){
   el.style.cssText=`left:${x}px;top:${y}px;color:${color};font-size:${size}px;`;
   floatEl.appendChild(el); setTimeout(()=>el.remove(),1050);
 }
+/* ===== 关卡内道具 ===== */
+let items={bomb:0,hammer:0,paint:0};
+let itemMode=null;
+let turnReward=null;
+function resetLevelItems(){
+  items={bomb:0,hammer:0,paint:0};
+  itemMode=null;
+  turnReward=null;
+  sel=null;
+  document.querySelectorAll(".tile.sel").forEach(e=>e.classList.remove("sel"));
+  updateItemBar();
+}
+function beginTurnReward(kind){
+  turnReward={active:true,source:kind||"swap",maxCombo:0,cleared:0,awarded:{hammer:false,bomb:false,paint:false}};
+}
+function noteTurnClear(n){
+  if(!turnReward||!turnReward.active||!n) return;
+  turnReward.cleared+=n;
+}
+function noteTurnCombo(combo){
+  if(!turnReward||!turnReward.active||!combo) return;
+  turnReward.maxCombo=Math.max(turnReward.maxCombo,combo);
+}
+function awardLevelItem(kind,n,label){
+  if(!n) return;
+  items[kind]=(items[kind]||0)+n;
+  updateItemBar();
+  const msg=(label||"")+" +"+n;
+  toast("获得本关道具："+msg);
+  floatText(msg,wrapEl.clientWidth/2,wrapEl.clientHeight/3,"#ff8a3d",20);
+  SFX.create();
+}
+function settleTurnReward(){
+  if(!turnReward||!turnReward.active) return;
+  const combo=turnReward.maxCombo||0;
+  if(combo>=3&&!turnReward.awarded.hammer){ turnReward.awarded.hammer=true; awardLevelItem("hammer",1,"🔨小锤"); }
+  if(combo>=4&&!turnReward.awarded.paint){ turnReward.awarded.paint=true; awardLevelItem("paint",1,"🎨染色"); }
+  if(combo>=5&&!turnReward.awarded.bomb){ turnReward.awarded.bomb=true; awardLevelItem("bomb",1,"💣炸弹"); }
+  turnReward.active=false;
+}
+function clearTurnReward(){ turnReward=null; }
+function updateItemBar(){
+  const map={bomb:"💣",hammer:"🔨",paint:"🎨"};
+  for(const k of ["bomb","hammer","paint"]){
+    const b=document.getElementById("item-"+k); if(!b) continue;
+    b.querySelector(".ic").textContent=map[k];
+    const n=b.querySelector(".n"); n.textContent=items[k]; n.style.display=items[k]>0?"":"none";
+    b.classList.toggle("on",itemMode===k); b.classList.toggle("empty",items[k]<=0);
+  }
+}
+function selectItem(k){
+  if(busy){ toast("动画结算中…"); return; }
+  if(items[k]<=0){ toast(k==="bomb"?"本关没有区域炸弹了，可通过消除奖励获得":k==="hammer"?"本关没有小锤了，可通过消除奖励获得":"本关没有染色魔法了，可通过消除奖励获得"); SFX.bad(); return; }
+  itemMode=itemMode===k?null:k; sel=null; document.querySelectorAll(".tile.sel").forEach(e=>e.classList.remove("sel"));
+  updateItemBar(); SFX.click();
+  if(itemMode) toast(k==="bomb"?"点击一个格子，炸开周围3×3":k==="hammer"?"点击一个格子敲掉（可破冰/锁/云/墨/巧克力）":"点击一个普通棋子，全场同类变成你的目标色");
+}
 function comboWord(combo){
   const words=["","啊哒！","啊哒哒！","啊哒哒哒！","啊哒哒哒哒！","啊哒哒哒哒哒！","啊哒哒哒哒哒哒！"];
   const w=words[Math.min(combo-1,words.length-1)]; if(!w) return;
@@ -828,11 +899,11 @@ function buildTerrain(lv){
   boardMask=Array.from({length:R},()=>Array(C).fill(true));
   const hole=(r,c)=>{ if(r>=0&&r<R&&c>=0&&c<C) boardMask[r][c]=false; };
   const shape=lv.shape;
-  if(shape==="diamond"){ for(let r=0;r<R;r++)for(let c=0;c<C;c++) if(Math.abs(r-3.5)+Math.abs(c-3.5)>4) hole(r,c); }
-  else if(shape==="donut"){ [3,4].forEach(r=>[3,4].forEach(c=>hole(r,c))); }
-  else if(shape==="corners"){ [0,1,6,7].forEach(r=>[0,1,6,7].forEach(c=>hole(r,c))); }
-  else if(shape==="cross"){ for(let r=0;r<R;r++)for(let c=0;c<C;c++){ const inR=(r===3||r===4), inC=(c===3||c===4); if(!inR&&!inC) hole(r,c); } }
-  else if(shape==="split"){ for(let c=0;c<C;c++) hole(4,c); for(let c=4;c<C;c++) hole(3,c); }
+  if(shape==="diamond"){ const cr=(R-1)/2, cc=(C-1)/2; for(let r=0;r<R;r++)for(let c=0;c<C;c++) if(Math.abs(r-cr)+Math.abs(c-cc)>5) hole(r,c); }
+  else if(shape==="donut"){ [R/2-1,R/2].forEach(r=>[C/2-1,C/2].forEach(c=>hole(r,c))); }
+  else if(shape==="corners"){ [0,1,R-2,R-1].forEach(r=>[0,1,C-2,C-1].forEach(c=>hole(r,c))); }
+  else if(shape==="cross"){ for(let r=0;r<R;r++)for(let c=0;c<C;c++){ const inR=(r===R/2-1||r===R/2), inC=(c===C/2-1||c===C/2); if(!inR&&!inC) hole(r,c); } }
+  else if(shape==="split"){ for(let c=0;c<C;c++) hole(R/2,c); for(let c=C/2;c<C;c++) hole(R/2-1,c); }
   buildChains(lv.portals||[]);
 }
 function buildChains(portals){
@@ -1244,10 +1315,12 @@ function expandClear(seed){
 /* ---- 结算主循环 ---- */
 async function resolveBoard(prefer){
   let combo=0,totalCleared=0;
+  noteTurnCombo(0);
   while(true){
     const groups=findGroups();
     if(!groups.length) break;
     combo++;
+    noteTurnCombo(combo);
     const creations=planSpecials(groups,combo===1?prefer:null);
     const seed=[];
     groups.forEach(g=>g.cells.forEach(cell=>{ if(!creations.has(key(cell.r,cell.c))) seed.push(cell); }));
@@ -1274,6 +1347,7 @@ async function resolveBoard(prefer){
       totalCleared++;
     }
     gained*=combo;
+    noteTurnClear(clearMap.size-intercepted.size);
     addScore(gained);
 
     // 动画：粒子+消除+飞向目标
@@ -1367,6 +1441,7 @@ async function collapseAndRefill(){
 function adjacent(a,b){ return Math.abs(a.r-b.r)+Math.abs(a.c-b.c)===1; }
 async function trySwap(a,b){
   if(busy||gameOver) return;
+  beginTurnReward("swap");
   const t1=board[a.r][a.c], t2=board[b.r][b.c];
   if(!t1||!t2) return;
   // 锁链/云层下的棋子不能移动
@@ -1390,6 +1465,7 @@ async function trySwap(a,b){
       placeTile(t1); placeTile(t2);
       floatText("⭐能量未满 "+Math.floor(starEnergy/STAR_MAX*100)+"%",wrapEl.clientWidth/2,wrapEl.clientHeight/3,"#9a8aa0",16);
       SFX.bad(); await sleep(230);
+      clearTurnReward();
       busy=false; scheduleHint();
       return;
     }
@@ -1411,6 +1487,7 @@ async function trySwap(a,b){
       placeTile(t1); placeTile(t2);
       SFX.bad();
       await sleep(230);
+      clearTurnReward();
       busy=false; scheduleHint();
       return;
     }
@@ -1440,6 +1517,7 @@ async function clearAndSettle(seed,label,perTile,extraTiles){
     }
   }
   if(intercepted.size){ renderFog(); renderCage(); }
+  let clearedNow=0;
   for(const [k,tile] of clearMap){
     const [r,c]=k.split(",").map(Number);
     collectAdjHits(r,c,bag);
@@ -1447,6 +1525,7 @@ async function clearAndSettle(seed,label,perTile,extraTiles){
     if(board[r][c]===tile) board[r][c]=null;
     goalsState.forEach(g=>{ if(g.type===tile.type&&g.remain>0) g.remain--; });
     gained+=perTile;
+    clearedNow++;
     chargeStar(1);
     // 吸入动画：棋子螺旋飞向中心并缩小消失
     const dx=cxp-(c*TS+TS/2), dy=cyp-(r*TS+TS/2);
@@ -1471,6 +1550,7 @@ async function clearAndSettle(seed,label,perTile,extraTiles){
   updateGoalsHUD();
   await sleep(520);
   for(const [k,tile] of clearMap) if(!intercepted.has(k)) tile.el.remove();
+  noteTurnClear(clearedNow);
   await collapseAndRefill();
   await resolveBoard(null);
 }
@@ -1612,15 +1692,18 @@ async function afterTurn(){
   await chocoSpread();
   await octoSpray();
   updateGoalsHUD();
+  settleTurnReward();
   if(checkWin()){
     gameOver=true;
     await sleep(350);
+    clearTurnReward();
     await winSequence();
     return;
   }
   if(movesLeft<=0){
     gameOver=true;
     await sleep(350);
+    clearTurnReward();
     loseSequence();
     return;
   }
@@ -1629,6 +1712,7 @@ async function afterTurn(){
     await shuffleBoard();
     await resolveBoard(null);
   }
+  clearTurnReward();
   busy=false; scheduleHint();
 }
 
@@ -1885,7 +1969,7 @@ function buildMap(){
 }
 function layout(){
   const w=Math.min(window.innerWidth-20,540), h=window.innerHeight-150;
-  TS=Math.floor(Math.min(w,h)/8);
+  TS=Math.floor(Math.min(w/C,h/R));
   document.documentElement.style.setProperty("--ts",TS+"px");
   sizeFx();
   // 重新摆放
@@ -1899,6 +1983,7 @@ function layout(){
 }
 function startLevel(i){
   level=i; const lv=LEVELS[i];
+  resetLevelItems();
   movesLeft=lv.moves; score=0; displayScore=0; $("#score").textContent="0";
   goalsState=lv.goals.map(g=>g.ice?{ice:true}:g.choco?{choco:true}:g.bean?{bean:true,n:g.n}:g.octo?{octo:true}:{type:g.type,remain:g.n});
   gameOver=false; busy=true; selected=null;
@@ -1951,7 +2036,7 @@ function showModal(win,stars,hadStreak){
   const card=$("#modal-card");
   if(win){
     card.innerHTML=`<h2>通关啦！</h2><div class="sub">第 ${level+1} 关 · 一二布布为你欢呼</div>
-      <div class="sub streak-line">🔥 连胜 x${save.streak} · 下关开局送${streakRewardText(save.streak)}</div>
+      <div class="sub streak-line">🔥 连胜 x${save.streak} · 下一关开局追加棋盘特效：${streakRewardText(save.streak)}</div>
       <div class="modal-stars">${[0,1,2].map(i=>`<span data-i="${i}">★</span>`).join("")}</div>
       <div class="modal-score">得分 <b id="final-score">${score}</b></div>
       <div class="modal-btns">
@@ -1964,16 +2049,16 @@ function showModal(win,stars,hadStreak){
     for(let i=0;i<stars;i++) setTimeout(()=>{ spans[i].classList.add("on"); tone(700+i*160,.2,"triangle",.12); }, 350+i*380);
     $("#m-replay").onclick=()=>{ $("#modal").classList.add("hidden"); startLevel(level); };
     const nx=$("#m-next"); if(nx) nx.onclick=()=>{ $("#modal").classList.add("hidden"); startLevel(level+1); };
-    $("#m-home").onclick=()=>{ $("#modal").classList.add("hidden"); buildMap(); show("#levels"); startBGM("map"); };
+    $("#m-home").onclick=()=>{ $("#modal").classList.add("hidden"); resetLevelItems(); buildMap(); show("#levels"); startBGM("map"); };
   }else{
-    card.innerHTML=`<h2 style="color:#8b9dc3">差一点点…</h2><div class="sub">${hadStreak?"连胜中断，开局奖励失效！":"步数用完了，再试一次吧！"}</div>
+    card.innerHTML=`<h2 style="color:#8b9dc3">差一点点…</h2><div class="sub">${hadStreak?"连胜中断，下一关开局加成失效！":"步数用完了，再试一次吧！"}</div>
       <div class="modal-btns">
         <button class="btn small pink" id="m-retry">再试一次</button>
         <button class="btn small" id="m-home2">选关</button>
       </div>`;
     $("#modal").classList.remove("hidden");
     $("#m-retry").onclick=()=>{ $("#modal").classList.add("hidden"); startLevel(level); };
-    $("#m-home2").onclick=()=>{ $("#modal").classList.add("hidden"); buildMap(); show("#levels"); startBGM("map"); };
+    $("#m-home2").onclick=()=>{ $("#modal").classList.add("hidden"); resetLevelItems(); buildMap(); show("#levels"); startBGM("map"); };
   }
 }
 
@@ -1999,7 +2084,7 @@ $("#btn-start").onclick=()=>{ ac(); SFX.click(); unlockVoice();
   try{ const d=document.documentElement; if(d.requestFullscreen&&!document.fullscreenElement) d.requestFullscreen().catch(()=>{}); }catch(e){}
   buildMap(); show("#levels"); startBGM("map"); };
 $("#btn-lv-back").onclick=()=>{ SFX.click(); show("#home"); };
-$("#btn-home").onclick=()=>{ SFX.click(); buildMap(); show("#levels"); startBGM("map"); };
+$("#btn-home").onclick=()=>{ SFX.click(); resetLevelItems(); buildMap(); show("#levels"); startBGM("map"); };
 $("#btn-sound").onclick=function(){ soundOn=!soundOn; this.textContent=soundOn?"🔊":"🔇"; if(!soundOn){ if(window.speechSynthesis) speechSynthesis.cancel(); if(voiceCur) voiceCur.pause(); } if(soundOn) SFX.click(); };
 window.addEventListener("resize",layout);
 
