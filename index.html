@@ -127,6 +127,10 @@ body{
   font-size:12px;font-weight:800;line-height:20px;text-align:center;padding:0 4px;box-shadow:0 2px 4px rgba(255,110,160,.4);}
 .prop.armed{outline:3px solid #ffb52e;transform:scale(1.08);box-shadow:0 0 14px rgba(255,181,46,.7);}
 .prop.empty{opacity:.4;filter:grayscale(.8);}
+#toast{position:fixed;left:50%;bottom:20%;transform:translateX(-50%) translateY(8px);background:rgba(60,45,70,.92);color:#fff;
+  padding:9px 18px;border-radius:20px;font-size:14px;font-weight:700;opacity:0;pointer-events:none;
+  transition:opacity .2s,transform .2s;z-index:99;box-shadow:0 4px 14px rgba(0,0,0,.25);white-space:nowrap;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 #board-wrap.shake{animation:shake .4s;}
 @keyframes shake{0%,100%{transform:translate(0,0);}20%{transform:translate(-7px,3px) rotate(-.6deg);}40%{transform:translate(6px,-4px) rotate(.5deg);}60%{transform:translate(-5px,-3px);}80%{transform:translate(4px,3px);}}
 #board{position:relative;width:calc(var(--ts)*8);height:calc(var(--ts)*12);touch-action:none;
@@ -687,7 +691,7 @@ function resetLevelItems(){
   items={bomb:0,hammer:0,paint:0};
   itemMode=null;
   turnReward=null;
-  sel=null;
+  selected=null;
   document.querySelectorAll(".tile.sel").forEach(e=>e.classList.remove("sel"));
   updateItemBar();
 }
@@ -720,21 +724,79 @@ function settleTurnReward(){
   turnReward.active=false;
 }
 function clearTurnReward(){ turnReward=null; }
+/* 轻提示气泡 */
+let toastTimer=null;
+function toast(msg){
+  let t=document.getElementById("toast");
+  if(!t){ t=document.createElement("div"); t.id="toast"; document.body.appendChild(t); }
+  t.textContent=msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove("show"),1500);
+}
 function updateItemBar(){
-  const map={bomb:"💣",hammer:"🔨",paint:"🎨"};
   for(const k of ["bomb","hammer","paint"]){
-    const b=document.getElementById("item-"+k); if(!b) continue;
-    b.querySelector(".ic").textContent=map[k];
-    const n=b.querySelector(".n"); n.textContent=items[k]; n.style.display=items[k]>0?"":"none";
-    b.classList.toggle("on",itemMode===k); b.classList.toggle("empty",items[k]<=0);
+    const b=document.querySelector('.prop[data-p="'+k+'"]'); if(!b) continue;
+    const n=b.querySelector(".pcnt"); if(n) n.textContent=items[k];
+    b.classList.toggle("armed",itemMode===k);
+    b.classList.toggle("empty",items[k]<=0);
   }
 }
 function selectItem(k){
   if(busy){ toast("动画结算中…"); return; }
   if(items[k]<=0){ toast(k==="bomb"?"本关没有区域炸弹了，可通过消除奖励获得":k==="hammer"?"本关没有小锤了，可通过消除奖励获得":"本关没有染色魔法了，可通过消除奖励获得"); SFX.bad(); return; }
-  itemMode=itemMode===k?null:k; sel=null; document.querySelectorAll(".tile.sel").forEach(e=>e.classList.remove("sel"));
+  itemMode=itemMode===k?null:k; selected=null; document.querySelectorAll(".tile.sel").forEach(e=>e.classList.remove("sel"));
   updateItemBar(); SFX.click();
   if(itemMode) toast(k==="bomb"?"点击一个格子，炸开周围3×3":k==="hammer"?"点击一个格子敲掉（可破冰/锁/云/墨/巧克力）":"点击一个普通棋子，全场同类变成你的目标色");
+}
+/* 使用道具（不消耗步数、不触发回合蔓延） */
+async function useItemAt(kind,p){
+  if(busy||gameOver) return;
+  if(items[kind]<=0){ itemMode=null; updateItemBar(); return; }
+  items[kind]--; itemMode=null; updateItemBar();
+  busy=true;
+  if(kind==="bomb"){
+    const seed=[];
+    for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+      const r=p.r+dr,c=p.c+dc;
+      if(r>=0&&r<R&&c>=0&&c<C&&boardMask[r][c]&&board[r][c]) seed.push({r,c});
+    }
+    SFX.bomb(); shakeBoard(); boomRing(p.r,p.c); flashScreen();
+    if(seed.length) await clearAndSettle(seed,"💣炸弹",20);
+  }else if(kind==="hammer"){
+    const bag=newAdjBag();
+    if(octoMap[p.r][p.c]) bag.octo.add(key(p.r,p.c));
+    else if(chocoMap[p.r][p.c]) bag.choco.add(key(p.r,p.c));
+    else if(fogMap[p.r][p.c]) bag.fog.add(key(p.r,p.c));
+    if(iceMap[p.r][p.c]>0) bag.ice.add(key(p.r,p.c));
+    if(bag.ice.size||bag.fog.size||bag.choco.size||bag.octo.size){ applyAdjHits(bag); }
+    else if(cageMap[p.r][p.c]){ cageMap[p.r][p.c]=false; renderCage(); burst(p.r,p.c,2,.9); SFX.ice(); }
+    else if(board[p.r][p.c]){ SFX.bomb(); await clearAndSettle([{r:p.r,c:p.c}],"🔨小锤",20); }
+    else toast("这里没有什么可敲的");
+    updateGoalsHUD();
+  }else if(kind==="paint"){
+    const t=board[p.r][p.c];
+    const refund=()=>{ items.paint++; updateItemBar(); busy=false; scheduleHint(); };
+    if(!t||t.sp){ toast("请点选一个普通棋子"); refund(); return; }
+    let target=-1,best=0;
+    goalsState.forEach(g=>{ if(g.type!==undefined&&g.remain>best){ best=g.remain; target=g.type; } });
+    if(target<0){ toast("本关没有颜色目标"); refund(); return; }
+    if(target===t.type){ toast("已经是目标色啦"); refund(); return; }
+    const from=t.type;
+    for(let r=0;r<R;r++)for(let c=0;c<C;c++){
+      const x=board[r][c];
+      if(x&&x.type===from&&!x.sp){
+        x.type=target;
+        x.el.classList.remove("t"+from); x.el.classList.add("t"+target);
+        const img=x.el.querySelector("img"); if(img) img.src=SPRITES[target];
+        burst(r,c,target,.7);
+      }
+    }
+    floatText("🎨染色！",p.c*TS+TS/2,p.r*TS,"#b06bff",22);
+    SFX.create();
+    await sleep(280);
+    await resolveBoard(null);
+  }
+  if(checkWin()){ gameOver=true; await sleep(350); await winSequence(); return; }
+  busy=false; scheduleHint();
 }
 function comboWord(combo){
   const words=["","啊哒！","啊哒哒！","啊哒哒哒！","啊哒哒哒哒！","啊哒哒哒哒哒！","啊哒哒哒哒哒哒！"];
@@ -1836,7 +1898,7 @@ boardEl.addEventListener("pointerdown",e=>{
   e.preventDefault();
 });
 boardEl.addEventListener("pointermove",e=>{
-  if(!dragStart||dragStart.moved||busy||gameOver) return;
+  if(!dragStart||dragStart.moved||busy||gameOver||itemMode) return;
   const dx=e.clientX-dragStart.x, dy=e.clientY-dragStart.y;
   if(Math.hypot(dx,dy)<TS*.35) return;
   dragStart.moved=true;
@@ -1850,7 +1912,8 @@ window.addEventListener("pointerup",e=>{
   if(!dragStart||busy||gameOver){dragStart=null;return;}
   if(!dragStart.moved){
     const p={r:dragStart.r,c:dragStart.c};
-    if(selected&&adjacent(selected,p)){
+    if(itemMode){ useItemAt(itemMode,p); }
+    else if(selected&&adjacent(selected,p)){
       const a=selected; clearSelection(); trySwap(a,p);
     }else if(selected&&selected.r===p.r&&selected.c===p.c){
       clearSelection();
@@ -2084,6 +2147,7 @@ $("#btn-start").onclick=()=>{ ac(); SFX.click(); unlockVoice();
   try{ const d=document.documentElement; if(d.requestFullscreen&&!document.fullscreenElement) d.requestFullscreen().catch(()=>{}); }catch(e){}
   buildMap(); show("#levels"); startBGM("map"); };
 $("#btn-lv-back").onclick=()=>{ SFX.click(); show("#home"); };
+document.querySelectorAll(".prop").forEach(b=>b.onclick=()=>{ ac(); selectItem(b.dataset.p); });
 $("#btn-home").onclick=()=>{ SFX.click(); resetLevelItems(); buildMap(); show("#levels"); startBGM("map"); };
 $("#btn-sound").onclick=function(){ soundOn=!soundOn; this.textContent=soundOn?"🔊":"🔇"; if(!soundOn){ if(window.speechSynthesis) speechSynthesis.cancel(); if(voiceCur) voiceCur.pause(); } if(soundOn) SFX.click(); };
 window.addEventListener("resize",layout);
