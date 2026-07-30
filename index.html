@@ -1440,7 +1440,7 @@ async function fireArrows(){
     const seed=[]; let rr=r+dr,cc=c+dc;
     while(rr>=0&&rr<R&&cc>=0&&cc<C&&boardMask[rr][cc]){
       if(arrowMap[rr][cc]) q.push(rr+","+cc); // 连锁触发
-      if(bottleMap[rr][cc]>0||chocoMap[rr][cc]||octoMap[rr][cc]||snailMap[rr][cc]) break; // 障碍挡光束
+      // 光束穿透蜂蜜瓶/巧克力/章鱼/蜗牛等障碍，直接清掉墙后棋子
       if(board[rr][cc]) seed.push({r:rr,c:cc});
       rr+=dr; cc+=dc;
     }
