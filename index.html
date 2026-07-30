@@ -395,6 +395,7 @@ for(let i=8;i<1000;i++){
   if(i>=499&&i%12===9){ beans=Math.max(beans,3); cageN=Math.max(cageN,8); } // 500关起
   if(i>=699&&i%10===6){ fog=true; choco=Math.max(choco,4); beans=Math.max(beans,2); } // 700关起：三重奏
   if((fog||cageN)&&ice==='full') ice='cross'; // 满屏冰会挤掉云层/锁链落点，降为中字冰
+  if(cageN&&shape==='cross') cageN=Math.min(cageN,6); // 十字棋盘仅28格，锁链限量
   const goals=[];
   if(ice) goals.push({ice:true});
   // 困难关：目标量下调、上限更低，不再额外加量
@@ -757,7 +758,7 @@ function buildTerrain(lv){
   if(shape==="diamond"){ for(let r=0;r<R;r++)for(let c=0;c<C;c++) if(Math.abs(r-3.5)+Math.abs(c-3.5)>4) hole(r,c); }
   else if(shape==="donut"){ [3,4].forEach(r=>[3,4].forEach(c=>hole(r,c))); }
   else if(shape==="corners"){ [0,1,6,7].forEach(r=>[0,1,6,7].forEach(c=>hole(r,c))); }
-  else if(shape==="cross"){ for(let r=0;r<R;r++)for(let c=0;c<C;c++){ const inR=(r===3||r===4), inC=(c===3||c===4); if(inR!==inC) hole(r,c); } }
+  else if(shape==="cross"){ for(let r=0;r<R;r++)for(let c=0;c<C;c++){ const inR=(r===3||r===4), inC=(c===3||c===4); if(!inR&&!inC) hole(r,c); } }
   else if(shape==="split"){ for(let c=0;c<C;c++) hole(4,c); for(let c=4;c<C;c++) hole(3,c); }
   buildChains(lv.portals||[]);
 }
