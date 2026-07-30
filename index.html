@@ -555,9 +555,10 @@ let chocoClearedThisTurn = false;
 let bottleMap = Array.from({length:R},()=>Array(C).fill(0));    // 蜂蜜瓶 0=无 1=裂纹 2=完整
 let sunEnergy = 0;              // 太阳花能量
 const SUN_MAX = 20;             // 太阳花满能量所需消除数
-let snails = [];                // 蜗牛列表 [{r,c}]（同时只有1只在轨道上）
+let snails = [];                // 蜗牛列表 [{r,c}]（起点空了就出下一只，可多只同轨）
 let snailMap = Array.from({length:R},()=>Array(C).fill(false)); // 蜗牛占据格
 let snailState = {need:0,got:0};// 蜗牛回家目标
+let snailSpawned = 0;           // 已出发的蜗牛数
 let snailTrack = [];            // 蜗牛轨道 [{r,c}...] 起点->终点
 let trackSet = new Set();       // 轨道格 key 集合
 let trackOn = [];               // trackOn[r][c] = 轨道格已点亮
@@ -862,9 +863,10 @@ async function useItemAt(kind,p){
     if(iceMap[p.r][p.c]>0) bag.ice.add(key(p.r,p.c));
     if(bag.ice.size||bag.fog.size||bag.choco.size||bag.octo.size||bag.bottle.size){ applyAdjHits(bag); }
     else if(snailMap[p.r][p.c]&&snails.length){
-      // 点亮前方2格轨道并冲刺
-      const s=snails[0];
+      // 点亮被敲蜗牛前方2格轨道并冲刺
+      const s=snails.find(x=>x.r===p.r&&x.c===p.c)||snails[0];
       let idx=snailTrack.findIndex(x=>x.r===s.r&&x.c===s.c), lit=0;
+      if(idx<0) idx=0;
       for(let i=idx+1;i<snailTrack.length&&lit<2;i++){ const q=snailTrack[i]; if(!trackOn[q.r][q.c]){ trackOn[q.r][q.c]=true; lit++; burst(q.r,q.c,3,.7); } }
       renderTrack();
       if(lit){ toast("蜗牛冲刺！"); await snailRoll(); }
@@ -1179,7 +1181,7 @@ function buildMechanics(lv){
   bottleMap=Array.from({length:R},()=>Array(C).fill(0));
   sunEnergy=0;
   snails=[]; snailMap=Array.from({length:R},()=>Array(C).fill(false));
-  snailState={need:lv.snail||0,got:0};
+  snailState={need:lv.snail||0,got:0}; snailSpawned=0;
   snailTrack=[]; trackSet=new Set();
   trackOn=Array.from({length:R},()=>Array(C).fill(false));
   arrowMap=Array.from({length:R},()=>Array(C).fill(0));
@@ -1223,7 +1225,7 @@ function buildMechanics(lv){
   // 蜗牛：放上轨道起点
   if(lv.snail&&snailTrack.length){
     const p=snailTrack[0];
-    snailMap[p.r][p.c]=true; snails=[{r:p.r,c:p.c}];
+    snailMap[p.r][p.c]=true; snails=[{r:p.r,c:p.c}]; snailSpawned=1;
     const t=board[p.r][p.c]; if(t){ board[p.r][p.c]=null; t.el.remove(); }
   }
   // 定向箭头：固定元素，旁边消除触发，朝指向清空整行/列，可连锁
@@ -1371,46 +1373,48 @@ function activateTrackAround(r,c){
 }
 async function snailRoll(){
   if(!snailTrack.length) return;
-  // 蜗牛沿本步点亮的连通轨道格一路滚动（轨道格是空槽，无棋子）
-  if(snails.length){
-    const s=snails[0];
-    let idx=snailTrack.findIndex(p=>p.r===s.r&&p.c===s.c);
-    if(idx<0) idx=0;
+  const idxOf=s=>{ const i=snailTrack.findIndex(p=>p.r===s.r&&p.c===s.c); return i<0?0:i; };
+  // 从前到后滚动：前面的蜗牛先走，腾出格子后面的才能跟上
+  const order=[...snails].sort((a,b)=>idxOf(b)-idxOf(a));
+  for(const s of order){
+    let idx=idxOf(s);
     while(idx+1<snailTrack.length){
       const nx=snailTrack[idx+1];
-      if(!trackOn[nx.r][nx.c]) break;
+      if(!trackOn[nx.r][nx.c]||snailMap[nx.r][nx.c]) break; // 未点亮或被前方蜗牛占住
       snailMap[s.r][s.c]=false;
       snailMap[nx.r][nx.c]=true;
       s.r=nx.r; s.c=nx.c;
       idx++;
       renderSnail(); SFX.click();
-      await sleep(120);
+      await sleep(110);
     }
   }
   // 绿色只保持一步：滚动结束后本步点亮的格子全部熄灭
   let any=false;
   for(let r=0;r<R;r++)for(let c=0;c<C;c++) if(trackOn[r][c]){ trackOn[r][c]=false; any=true; }
   if(any) renderTrack();
-  if(!snails.length) return;
-  const s2=snails[0];
+  // 终点收集
   const fin=snailTrack[snailTrack.length-1];
-  if(s2.r!==fin.r||s2.c!==fin.c) return;
-  // 到达终点
-  snails=[];
-  snailMap[fin.r][fin.c]=false;
-  snailState.got++;
-  addScore(500);
-  floatText("蜗牛到家 +500",fin.c*TS+TS/2,fin.r*TS,"#7ac74f",20);
-  burst(fin.r,fin.c,3,1.2);
-  SFX.create();
-  renderSnail(); updateGoalsHUD();
-  await sleep(220);
-  if(snailState.got<snailState.need){
-    // 下一只蜗牛出发
-    const p=snailTrack[0];
-    snailMap[p.r][p.c]=true; snails=[{r:p.r,c:p.c}];
+  const arrived=snails.filter(s=>s.r===fin.r&&s.c===fin.c);
+  for(const s of arrived){
+    snails.splice(snails.indexOf(s),1);
+    snailMap[fin.r][fin.c]=false;
+    snailState.got++;
+    addScore(500);
+    floatText("蜗牛到家 +500",fin.c*TS+TS/2,fin.r*TS,"#7ac74f",20);
+    burst(fin.r,fin.c,3,1.2);
+    SFX.create();
+  }
+  if(arrived.length){ renderSnail(); updateGoalsHUD(); await sleep(200); }
+  // 起点没有蜗牛就继续出下一只
+  const start=snailTrack[0];
+  if(snailSpawned<snailState.need&&!snailMap[start.r][start.c]){
+    snailMap[start.r][start.c]=true;
+    snails.push({r:start.r,c:start.c});
+    snailSpawned++;
     renderSnail();
-    floatText("下一只蜗牛出发！",p.c*TS+TS/2,(p.r+1.5)*TS,"#7ac74f",18);
+    burst(start.r,start.c,3,.8);
+    floatText("下一只蜗牛出发！",(start.c+0.5)*TS,(start.r+1.5)*TS,"#7ac74f",18);
   }
 }
 /* ---- 定向箭头：旁边消除触发，朝指向清空整行/列，光束命中箭头连锁 ---- */
