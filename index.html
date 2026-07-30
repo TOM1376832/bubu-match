@@ -385,7 +385,7 @@ const LEVELS = [
   {moves:26, colors:6, ice:'full',    goals:[{ice:true},{type:4,n:22}],              stars:[2500,4700,7800], hard:true},
 ];
 // 第9~1000关程序化生成，每4关一个困难关，每7关一个5色轻松关
-// 玩法递进：15关起传送门，16关起炮弹，110关起云层，130关起锁链，160关起巧克力，200关起金豆荚，300关后组合出现
+// 全部玩法（传送门/炮弹/云层/锁链/巧克力/金豆荚/星星瓶）从前期开始全局均匀循环分布
 for(let i=8;i<1000;i++){
   const hard=(i+1)%4===0;
   let ice=[null,'ring','checker','cross',null,'ring','checker','cross',null,'full'][i%10];
@@ -394,21 +394,21 @@ for(let i=8;i<1000;i++){
   // 异形棋盘（从第11关起，每隔6关一种造型）
   let shape=null, portals=null, cannons=0;
   if(i>=10&&i%6===2) shape=["diamond","donut","corners","cross"][Math.floor(i/6)%4];
-  // 传送门（从第15关起，每隔10关一个分裂地形）
-  if(i>=14&&i%10===4){ shape="split"; portals=[{in:[3,0],out:[5,4]},{in:[3,1],out:[5,5]}]; }
-  // 炮弹布布（从第16关起，困难关和每5关配置）
-  if(i>=15&&(hard||i%5===0)) cannons=2;
-  // ---- 高阶玩法递进解锁 ----
+  // 传送门（从第11关起，每隔10关一个分裂地形）
+  if(i>=10&&i%10===4){ shape="split"; portals=[{in:[3,0],out:[5,4]},{in:[3,1],out:[5,5]}]; }
+  // 炮弹布布（从第13关起，困难关和每5关配置）
+  if(i>=12&&(hard||i%5===0)) cannons=2;
+  // ---- 高阶玩法：全局均匀分布，周期循环出现 ----
   let fog=false, cageN=0, choco=0, beans=0;
-  const star=i>=89&&i%5===2;                                        // 90关起：星星瓶（攒能量吸入全色）
-  if(i>=109&&i%8===1) fog=true;                                     // 110关起：云层迷雾
-  if(i>=129&&i%7===3) cageN=Math.min(14,5+Math.floor(i/50));        // 130关起：锁链牢笼
-  if(i>=159&&i%6===4) choco=Math.min(6,3+Math.floor(i/160));        // 160关起：巧克力
-  if(i>=199&&i%6===1) beans=Math.min(5,2+i%3);                      // 200关起：金豆荚
-  if(i>=299&&i%9===5){ fog=true; cageN=Math.max(cageN,6); }         // 300关起：组合玩法
-  if(i>=399&&i%11===7){ choco=Math.max(choco,3); fog=true; }        // 400关起
-  if(i>=499&&i%12===9){ beans=Math.max(beans,3); cageN=Math.max(cageN,8); } // 500关起
-  if(i>=699&&i%10===6){ fog=true; choco=Math.max(choco,4); beans=Math.max(beans,2); } // 700关起：三重奏
+  const star=i%5===2;                                            // 星星瓶：每5关
+  if(i%8===1) fog=true;                                          // 云层迷雾：每8关
+  if(i%7===3) cageN=5+i%3;                                       // 锁链牢笼：每7关
+  if(i%6===4) choco=3+i%2;                                       // 巧克力：每6关
+  if(i%6===1) beans=2+i%3;                                       // 金豆荚：每6关
+  if(i%9===5){ fog=true; cageN=Math.max(cageN,6); }              // 组合：云+锁
+  if(i%11===7){ choco=Math.max(choco,3); fog=true; }             // 组合：云+巧克力
+  if(i%12===9){ beans=Math.max(beans,3); cageN=Math.max(cageN,8); } // 组合：锁+豆荚
+  if(i%10===6){ fog=true; choco=Math.max(choco,4); beans=Math.max(beans,2); } // 云+巧克力+豆荚 三重奏
   if((fog||cageN)&&ice==='full') ice='cross'; // 满屏冰会挤掉云层/锁链落点，降为中字冰
   if(cageN&&shape==='cross') cageN=Math.min(cageN,6); // 十字棋盘仅28格，锁链限量
   const goals=[];
