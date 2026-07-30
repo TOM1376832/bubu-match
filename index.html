@@ -190,6 +190,28 @@ body{
   font-size:calc(var(--ts)*.52);filter:drop-shadow(0 1px 2px rgba(0,0,0,.4));animation:chocoPop .3s;}
 @keyframes chocoIn{0%{opacity:0;}100%{opacity:1;}}
 @keyframes chocoPop{0%{transform:scale(.3);}100%{transform:scale(1);}}
+/* 蜂蜜瓶：2层占位障碍，相邻消除震裂 */
+.bottle{position:absolute;width:var(--ts);height:var(--ts);z-index:3;pointer-events:none;border-radius:14px;
+  background:linear-gradient(145deg,#f7c948,#d9941f);
+  box-shadow:inset 0 0 0 2px rgba(140,85,10,.85),inset 0 -8px 10px rgba(120,70,5,.45),0 2px 5px rgba(140,85,10,.5);}
+.bottle::before{content:"🍯";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:calc(var(--ts)*.52);filter:drop-shadow(0 1px 2px rgba(0,0,0,.35));}
+.bottle.crack{filter:brightness(1.15) saturate(.75);}
+.bottle.crack::after{content:"💥";position:absolute;right:0;top:0;font-size:calc(var(--ts)*.3);}
+/* 蜗牛：每回合向下爬一格，到底部出口回家 */
+.snail{position:absolute;width:var(--ts);height:var(--ts);z-index:4;pointer-events:none;border-radius:50%;
+  background:radial-gradient(circle at 42% 36%,#d8f3b0,#9ccf6a 78%);
+  box-shadow:inset 0 0 0 2px rgba(90,140,50,.7),0 2px 5px rgba(90,140,50,.4);}
+.snail::before{content:"🐌";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:calc(var(--ts)*.52);animation:snailBob 1.6s ease-in-out infinite;}
+@keyframes snailBob{0%,100%{transform:translateX(-5%);}50%{transform:translateX(5%);}}
+/* 太阳花：可移动不参与匹配，消除充能，满能十字爆发 */
+.tile.sp-sun .face img{display:none;}
+.tile.sp-sun .face{background:radial-gradient(circle at 50% 35%,#ffe89a,#ffb52e 78%);}
+.tile.sp-sun .face::after{content:"☀️";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:calc(var(--ts)*.52);filter:drop-shadow(0 1px 2px rgba(0,0,0,.3));}
+.tile.sp-sun.full .face::after{filter:drop-shadow(0 0 8px rgba(255,180,60,.95));animation:beanGlow 1s ease-in-out infinite;}
+.tile.sp-sun.full .face{animation:spGlow 1s ease-in-out infinite;}
 /* 金豆荚：不可消除，落到底部收集 */
 .tile.sp-bean .face img{display:none;}
 .tile.sp-bean .face::before{content:"🌰";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
@@ -437,17 +459,22 @@ for(let i=8;i<1000;i++){
   // 炮弹布布（从第13关起，困难关和每5关配置）
   if(i>=12&&(hard||i%5===0)) cannons=2;
   // ---- 高阶玩法：全局均匀分布，周期循环出现 ----
-  let fog=false, cageN=0, choco=0, beans=0;
+  let fog=false, cageN=0, choco=0, beans=0, bottle=0, snail=0;
   const star=i%5===2;                                            // 星星瓶：每5关
   const octo=i%9===4;                                            // 章鱼喷墨：每9关
+  const sun=i>=16&&i%6===3;                                      // 太阳花：每6关(辅助充能爆发)
   if(i%8===1) fog=true;                                          // 云层迷雾：每8关
   if(i%7===3) cageN=5+i%3;                                       // 锁链牢笼：每7关
   if(i%6===4) choco=3+i%2;                                       // 巧克力：每6关
   if(i%6===1) beans=2+i%3;                                       // 金豆荚：每6关
+  if(i>=15&&i%7===5) bottle=3+i%2;                               // 蜂蜜瓶：每7关
+  if(i>=18&&i%9===7) snail=2;                                    // 蜗牛回家：每9关
   if(i%9===5){ fog=true; cageN=Math.max(cageN,6); }              // 组合：云+锁
   if(i%11===7){ choco=Math.max(choco,3); fog=true; }             // 组合：云+巧克力
   if(i%12===9){ beans=Math.max(beans,3); cageN=Math.max(cageN,8); } // 组合：锁+豆荚
   if(i%10===6){ fog=true; choco=Math.max(choco,4); beans=Math.max(beans,2); } // 云+巧克力+豆荚 三重奏
+  if(i>=40&&i%13===10){ bottle=Math.max(bottle,4); fog=true; }   // 组合：云+蜂蜜瓶
+  if(i>=60&&i%14===12){ snail=Math.max(snail,3); beans=Math.max(beans,2); } // 组合：蜗牛+豆荚
   if((fog||cageN)&&ice==='full') ice='cross'; // 满屏冰会挤掉云层/锁链落点，降为中字冰
   if(cageN&&shape==='cross') cageN=Math.min(cageN,6); // 十字棋盘仅28格，锁链限量
   const goals=[];
@@ -463,15 +490,17 @@ for(let i=8;i<1000;i++){
   if(choco) goals.push({choco:true});
   if(beans) goals.push({bean:true,n:beans});
   if(octo) goals.push({octo:true});
+  if(bottle) goals.push({bottle:true});
+  if(snail) goals.push({snail:true,n:snail});
   // 困难关步数反多于普通关：6色+双目标+炮弹干扰，需要更多容错
   let moves=hard?22+i%3:20+i%4;
   if(ice==='full') moves+=6; // 满屏冰补步数
   if(portals) moves+=2;      // 分裂地形补步数
-  if(fog) moves+=3; if(cageN) moves+=3; if(choco) moves+=4; if(beans) moves+=4; if(octo) moves+=4; // 高阶玩法补步数
+  if(fog) moves+=3; if(cageN) moves+=3; if(choco) moves+=4; if(beans) moves+=4; if(octo) moves+=4; if(bottle) moves+=3; if(snail) moves+=4; // 高阶玩法补步数
   // 星级线：100关后放缓增长，保证3星可达
   const base=700+Math.min(i,100)*50+Math.max(0,i-100)*5;
   const m2=i>=100?1.6:1.7, m3=i>=100?2.1:2.6;
-  LEVELS.push({moves, colors, ice, goals, hard, shape, portals, cannons, fog, cage:cageN, choco, beans, star, octo,
+  LEVELS.push({moves, colors, ice, goals, hard, shape, portals, cannons, fog, cage:cageN, choco, beans, star, octo, bottle, sun, snail,
     stars:[base,Math.round(base*m2),Math.round(base*m3)]});
 }
 
@@ -492,6 +521,12 @@ let inkMap = Array.from({length:R},()=>Array(C).fill(false));   // 墨汁覆盖�
 let octoHP = 0;                 // 章鱼剩余生命
 let turnCount = 0;              // 回合计数（章鱼每2回合喷墨）
 let chocoClearedThisTurn = false;
+let bottleMap = Array.from({length:R},()=>Array(C).fill(0));    // 蜂蜜瓶 0=无 1=裂纹 2=完整
+let sunEnergy = 0;              // 太阳花能量
+const SUN_MAX = 20;             // 太阳花满能量所需消除数
+let snails = [];                // 蜗牛列表 [{r,c}]
+let snailMap = Array.from({length:R},()=>Array(C).fill(false)); // 蜗牛占据格
+let snailState = {need:0,got:0};// 蜗牛回家目标
 let tileIdSeq = 1;
 let TS = 64;
 let level = 0;
@@ -783,11 +818,20 @@ async function useItemAt(kind,p){
     if(seed.length) await clearAndSettle(seed,"💣炸弹",20);
   }else if(kind==="hammer"){
     const bag=newAdjBag();
+    const ht=board[p.r][p.c];
     if(octoMap[p.r][p.c]) bag.octo.add(key(p.r,p.c));
     else if(chocoMap[p.r][p.c]) bag.choco.add(key(p.r,p.c));
+    else if(bottleMap[p.r][p.c]>0) bag.bottle.add(key(p.r,p.c));
     else if(fogMap[p.r][p.c]) bag.fog.add(key(p.r,p.c));
     if(iceMap[p.r][p.c]>0) bag.ice.add(key(p.r,p.c));
-    if(bag.ice.size||bag.fog.size||bag.choco.size||bag.octo.size){ applyAdjHits(bag); }
+    if(bag.ice.size||bag.fog.size||bag.choco.size||bag.octo.size||bag.bottle.size){ applyAdjHits(bag); }
+    else if(snailMap[p.r][p.c]){
+      const s=snails.find(x=>x.r===p.r&&x.c===p.c);
+      if(s&&tryMoveSnail(s)){ renderSnail(); burst(s.r,s.c,3,1); toast("蜗牛加速前进！"); }
+      else toast("蜗牛前面被挡住了");
+      SFX.click();
+    }
+    else if(ht&&ht.sp==="sun"){ chargeSun(6); toast("太阳花充能 +6"); SFX.create(); }
     else if(cageMap[p.r][p.c]){ cageMap[p.r][p.c]=false; renderCage(); burst(p.r,p.c,2,.9); SFX.ice(); }
     else if(board[p.r][p.c]){ SFX.bomb(); await clearAndSettle([{r:p.r,c:p.c}],"🔨小锤",20); }
     else toast("这里没有什么可敲的");
@@ -811,6 +855,7 @@ async function useItemAt(kind,p){
     await sleep(280);
     await resolveBoard(null);
   }
+  await sunBlastIfReady();
   if(checkWin()){ gameOver=true; await sleep(350); await winSequence(); return; }
   busy=false; scheduleHint();
 }
@@ -1088,11 +1133,15 @@ function buildMechanics(lv){
   inkMap=Array.from({length:R},()=>Array(C).fill(false));
   octoHP=0; turnCount=0;
   chocoClearedThisTurn=false;
+  bottleMap=Array.from({length:R},()=>Array(C).fill(0));
+  sunEnergy=0;
+  snails=[]; snailMap=Array.from({length:R},()=>Array(C).fill(false));
+  snailState={need:lv.snail||0,got:0};
   const pickN=(n,filter)=>{
     const cells=[];
     for(let r=0;r<R;r++)for(let c=0;c<C;c++){
       const t=board[r][c];
-      if(boardMask[r][c]&&t&&!t.sp&&!iceMap[r][c]&&!fogMap[r][c]&&!cageMap[r][c]&&!chocoMap[r][c]&&!octoMap[r][c]&&(!filter||filter(r,c))) cells.push({r,c});
+      if(boardMask[r][c]&&t&&!t.sp&&!iceMap[r][c]&&!fogMap[r][c]&&!cageMap[r][c]&&!chocoMap[r][c]&&!octoMap[r][c]&&!bottleMap[r][c]&&!snailMap[r][c]&&(!filter||filter(r,c))) cells.push({r,c});
     }
     const out=[];
     for(let i=0;i<n&&cells.length;i++){ const j=Math.floor(Math.random()*cells.length); out.push(cells.splice(j,1)[0]); }
@@ -1109,12 +1158,28 @@ function buildMechanics(lv){
     chocoMap[p.r][p.c]=true;
     const t=board[p.r][p.c]; if(t){ board[p.r][p.c]=null; t.el.remove(); }
   });
+  // 蜂蜜瓶：占位障碍，2层，相邻消除震裂，碎裂+200
+  if(lv.bottle) pickN(lv.bottle,mid).forEach(p=>{
+    bottleMap[p.r][p.c]=2;
+    const t=board[p.r][p.c]; if(t){ board[p.r][p.c]=null; t.el.remove(); }
+  });
+  // 蜗牛：顶部出发，每回合向下爬一格，到底部出口回家
+  if(lv.snail) pickN(lv.snail,(r,c)=>r<=1).forEach(p=>{
+    snailMap[p.r][p.c]=true; snails.push({r:p.r,c:p.c});
+    const t=board[p.r][p.c]; if(t){ board[p.r][p.c]=null; t.el.remove(); }
+  });
   // 星星瓶：随机落一格，消除攒能量，满后与任意棋子交换吸入同色
   if(lv.star){ const p=pickN(1)[0];
     if(p){ const t=board[p.r][p.c];
       if(t){ setSpecial(t,"star");
         const b=document.createElement("span"); b.className="starp"; t.el.appendChild(b);
         renderStar(t); } } }
+  // 太阳花：可移动不参与匹配，消除充能，满能自动爆发十字清屏
+  if(lv.sun){ const p=pickN(1,(r,c)=>r>=2&&r<=R-3)[0];
+    if(p){ const t=board[p.r][p.c];
+      if(t){ setSpecial(t,"sun");
+        const b=document.createElement("span"); b.className="starp"; t.el.appendChild(b);
+        renderSun(t); } } }
 }
 function renderFog(){
   boardEl.querySelectorAll(".fog").forEach(e=>e.remove());
@@ -1136,6 +1201,101 @@ function renderOcto(){
     el.appendChild(hp);
     boardEl.appendChild(el);
   }
+}
+/* ---- 蜂蜜瓶：占位障碍，相邻消除震裂2层 ---- */
+function bottleCount(){ let n=0; for(let r=0;r<R;r++)for(let c=0;c<C;c++) if(bottleMap[r][c]>0) n++; return n; }
+function renderBottle(){
+  boardEl.querySelectorAll(".bottle").forEach(e=>e.remove());
+  for(let r=0;r<R;r++)for(let c=0;c<C;c++){
+    if(!bottleMap[r]||!bottleMap[r][c]) continue;
+    const el=document.createElement("div"); el.className="bottle"+(bottleMap[r][c]===1?" crack":"");
+    el.style.transform=`translate(${c*TS}px,${r*TS}px)`;
+    boardEl.appendChild(el);
+  }
+}
+/* ---- 太阳花：消除充能，满能十字爆发 ---- */
+function findSunTile(){ for(let r=0;r<R;r++)for(let c=0;c<C;c++){ const t=board[r][c]; if(t&&t.sp==="sun") return t; } return null; }
+function renderSun(st){
+  const b=st&&st.el.querySelector(".starp"); if(!b) return;
+  const full=sunEnergy>=SUN_MAX;
+  b.textContent=full?"MAX":Math.floor(sunEnergy/SUN_MAX*100)+"%";
+  st.el.classList.toggle("full",full);
+}
+function chargeSun(n){
+  if(sunBlasting) return; // 爆发自身造成的消除不回充
+  const st=findSunTile(); if(!st||sunEnergy>=SUN_MAX) return;
+  sunEnergy=Math.min(SUN_MAX,sunEnergy+n);
+  renderSun(st);
+}
+let sunBlasting=false;
+async function sunBlastIfReady(){
+  if(sunEnergy<SUN_MAX||sunBlasting) return;
+  const st=findSunTile(); if(!st){ sunEnergy=0; return; }
+  sunBlasting=true;
+  beamFX(st.r,st.c,"h"); beamFX(st.r,st.c,"v"); flashScreen(); SFX.bomb();
+  floatText("☀️太阳花爆发！",st.c*TS+TS/2,st.r*TS,"#ff9a3d",24);
+  const seed=[];
+  for(let c=0;c<C;c++) if(boardMask[st.r][c]&&board[st.r][c]&&board[st.r][c]!==st) seed.push({r:st.r,c});
+  for(let r=0;r<R;r++) if(boardMask[r][st.c]&&board[r][st.c]&&board[r][st.c]!==st) seed.push({r,c:st.c});
+  if(seed.length) await clearAndSettle(seed,"☀️太阳花",25);
+  sunBlasting=false;
+  sunEnergy=0; renderSun(st);
+}
+/* ---- 蜗牛：每回合向下爬一格，到底部出口回家 ---- */
+function renderSnail(){
+  boardEl.querySelectorAll(".snail").forEach(e=>e.remove());
+  snails.forEach(s=>{
+    const el=document.createElement("div"); el.className="snail";
+    el.style.transform=`translate(${s.c*TS}px,${s.r*TS}px)`;
+    boardEl.appendChild(el);
+  });
+}
+function tryMoveSnail(s){
+  for(const [dr,dc] of [[1,0],[1,-1],[1,1]]){
+    const rr=s.r+dr,cc=s.c+dc;
+    if(rr<0||rr>=R||cc<0||cc>=C||!boardMask[rr][cc]) continue;
+    if(fogMap[rr][cc]||cageMap[rr][cc]||chocoMap[rr][cc]||bottleMap[rr][cc]||octoMap[rr][cc]||snailMap[rr][cc]) continue;
+    const t=board[rr][cc];
+    if(!t||t.sp) continue;
+    snailMap[s.r][s.c]=false; snailMap[rr][cc]=true;
+    board[s.r][s.c]=t; t.r=s.r; t.c=s.c; board[rr][cc]=null;
+    placeTile(t);
+    s.r=rr; s.c=cc;
+    return true;
+  }
+  return false;
+}
+async function snailCrawl(){
+  if(!snails.length) return;
+  let moved=false;
+  for(const s of [...snails]) if(tryMoveSnail(s)) moved=true;
+  if(moved){ renderSnail(); await sleep(160); }
+  // 出口计算忽略蜗牛自身占位（否则蜗牛格被当成阻断，永远到不了出口）
+  const exits=[];
+  for(const chain of chains){
+    let seg=[];
+    const flush=()=>{ if(seg.length){ exits.push(seg[seg.length-1]); seg=[]; } };
+    for(const cell of chain){
+      if(chocoMap[cell.r][cell.c]||cageMap[cell.r][cell.c]||octoMap[cell.r][cell.c]||bottleMap[cell.r][cell.c]>0) flush();
+      else seg.push(cell);
+    }
+    flush();
+  }
+  const exitSet=new Set(exits.map(p=>key(p.r,p.c)));
+  const got=snails.filter(s=>exitSet.has(key(s.r,s.c)));
+  if(!got.length) return;
+  for(const s of got){
+    snails.splice(snails.indexOf(s),1);
+    snailMap[s.r][s.c]=false;
+    snailState.got++;
+    addScore(500);
+    floatText("蜗牛到家 +500",s.c*TS+TS/2,s.r*TS,"#7ac74f",20);
+    burst(s.r,s.c,3,1.2);
+    SFX.create();
+  }
+  renderSnail(); updateGoalsHUD();
+  await sleep(200);
+  await collapseAndRefill(); // 补蜗牛留下的空格
 }
 function renderCage(){
   boardEl.querySelectorAll(".cage").forEach(e=>e.remove());
@@ -1161,7 +1321,7 @@ function renderChoco(){
   }
 }
 /* 消除波及：冰/云/墨/巧克力/章鱼 统一收集 */
-function newAdjBag(){ return {ice:new Set(),fog:new Set(),choco:new Set(),octo:new Set()}; }
+function newAdjBag(){ return {ice:new Set(),fog:new Set(),choco:new Set(),octo:new Set(),bottle:new Set()}; }
 function collectAdjHits(r,c,bag){
   for(const [dr,dc] of [[0,0],[1,0],[-1,0],[0,1],[0,-1]]){
     const rr=r+dr,cc=c+dc;
@@ -1171,6 +1331,7 @@ function collectAdjHits(r,c,bag){
     if(fogMap[rr]&&fogMap[rr][cc]) bag.fog.add(k);
     if(chocoMap[rr]&&chocoMap[rr][cc]) bag.choco.add(k);
     if(octoMap[rr]&&octoMap[rr][cc]) bag.octo.add(k);
+    if(bottleMap[rr]&&bottleMap[rr][cc]>0) bag.bottle.add(k);
   }
 }
 function applyAdjHits(bag){
@@ -1200,6 +1361,15 @@ function applyAdjHits(bag){
     let n=0;
     bag.choco.forEach(k=>{ const [r,c]=k.split(",").map(Number); if(chocoMap[r][c]){ chocoMap[r][c]=false; chocoClearedThisTurn=true; burst(r,c,1,.8); n++; } });
     if(n){ renderChoco(); SFX.ice(); addScore(n*40); updateGoalsHUD(); }
+  }
+  if(bag.bottle.size){
+    let broke=0;
+    bag.bottle.forEach(k=>{ const [r,c]=k.split(",").map(Number);
+      if(bottleMap[r][c]>0){ bottleMap[r][c]--; burst(r,c,4,.9);
+        if(bottleMap[r][c]<=0){ broke++; addScore(200); floatText("蜂蜜瓶 +200",c*TS+TS/2,r*TS,"#e8a33d",18); } } });
+    renderBottle(); SFX.ice();
+    if(broke) SFX.create();
+    updateGoalsHUD();
   }
 }
 /* 巧克力蔓延：一步内没消到巧克力就向外侵蚀一格 */async function chocoSpread(){
@@ -1232,7 +1402,7 @@ function exitCells(){
     let seg=[];
     const flush=()=>{ if(seg.length){ exits.push(seg[seg.length-1]); seg=[]; } };
     for(const cell of chain){
-      if(chocoMap[cell.r][cell.c]||cageMap[cell.r][cell.c]||octoMap[cell.r][cell.c]) flush();
+      if(chocoMap[cell.r][cell.c]||cageMap[cell.r][cell.c]||octoMap[cell.r][cell.c]||bottleMap[cell.r][cell.c]>0||snailMap[cell.r][cell.c]) flush();
       else seg.push(cell);
     }
     flush();
@@ -1282,7 +1452,7 @@ function initBoard(colors){
 /* ---- 匹配检测 ---- */
 function findGroups(){
   const groups=[];
-  const matchable=t=>t&&t.sp!=="rainbow"&&t.sp!=="bean"&&t.sp!=="star"&&!fogMap[t.r][t.c];
+  const matchable=t=>t&&t.sp!=="rainbow"&&t.sp!=="bean"&&t.sp!=="star"&&t.sp!=="sun"&&!fogMap[t.r][t.c];
   for(let r=0;r<R;r++){
     let c=0;
     while(c<C){
@@ -1414,7 +1584,7 @@ async function resolveBoard(prefer){
     for(const [k,tile] of clearMap){
       const [r,c]=k.split(",").map(Number);
       if(board[r][c]!==tile) continue;
-      if(tile.sp==="bean"||tile.sp==="star"){ intercepted.add(k); continue; }
+      if(tile.sp==="bean"||tile.sp==="star"||tile.sp==="sun"){ intercepted.add(k); continue; }
       if(fogMap[r][c]){ fogMap[r][c]=false; inkMap[r][c]=false; intercepted.add(k); burst(r,c,-1,.7); continue; }
       if(cageMap[r][c]){ cageMap[r][c]=false; intercepted.add(k); burst(r,c,2,.9); SFX.ice(); continue; }
     }
@@ -1425,7 +1595,7 @@ async function resolveBoard(prefer){
     for(const [k,tile] of clearMap){
       if(intercepted.has(k)) continue;
       gained+=20;
-      chargeStar(1);
+      chargeStar(1); chargeSun(1);
       goalsState.forEach(g=>{ if(g.type===tile.type&&g.remain>0) g.remain--; });
       totalCleared++;
     }
@@ -1484,7 +1654,7 @@ async function collapseAndRefill(){
     const segs=[];
     let seg=[];
     for(const cell of chain){
-      if(chocoMap[cell.r][cell.c]||cageMap[cell.r][cell.c]||octoMap[cell.r][cell.c]){ if(seg.length){ segs.push(seg); seg=[]; } }
+      if(chocoMap[cell.r][cell.c]||cageMap[cell.r][cell.c]||octoMap[cell.r][cell.c]||bottleMap[cell.r][cell.c]>0||snailMap[cell.r][cell.c]){ if(seg.length){ segs.push(seg); seg=[]; } }
       else seg.push(cell);
     }
     if(seg.length) segs.push(seg);
@@ -1538,7 +1708,7 @@ async function trySwap(a,b){
   SFX.swap();
   await sleep(230);
 
-  const sp1=t1.sp, sp2=t2.sp;
+  const sp1=t1.sp==="sun"?null:t1.sp, sp2=t2.sp==="sun"?null:t2.sp; // 太阳花可移动但不触发特殊交换
   if(sp1==="star"||sp2==="star"){
     if(starEnergy>=STAR_MAX){ await handleStarSwap(t1,t2); }
     else{
@@ -1594,7 +1764,7 @@ async function clearAndSettle(seed,label,perTile,extraTiles){
   for(const [k,tile] of clearMap){
     const [r,c]=k.split(",").map(Number);
     if(board[r][c]===tile){
-      if(tile.sp==="bean"||tile.sp==="star"){ intercepted.add(k); continue; }
+      if(tile.sp==="bean"||tile.sp==="star"||tile.sp==="sun"){ intercepted.add(k); continue; }
       if(fogMap[r][c]){ fogMap[r][c]=false; inkMap[r][c]=false; intercepted.add(k); burst(r,c,-1,.7); continue; }
       if(cageMap[r][c]){ cageMap[r][c]=false; intercepted.add(k); burst(r,c,2,.9); SFX.ice(); continue; }
     }
@@ -1609,7 +1779,7 @@ async function clearAndSettle(seed,label,perTile,extraTiles){
     goalsState.forEach(g=>{ if(g.type===tile.type&&g.remain>0) g.remain--; });
     gained+=perTile;
     clearedNow++;
-    chargeStar(1);
+    chargeStar(1); chargeSun(1);
     // 吸入动画：棋子螺旋飞向中心并缩小消失
     const dx=cxp-(c*TS+TS/2), dy=cyp-(r*TS+TS/2);
     const dist=Math.hypot(dx,dy);
@@ -1774,6 +1944,8 @@ async function afterTurn(){
   turnCount++;
   await chocoSpread();
   await octoSpray();
+  await snailCrawl();
+  await sunBlastIfReady();
   updateGoalsHUD();
   settleTurnReward();
   if(checkWin()){
@@ -1800,7 +1972,7 @@ async function afterTurn(){
 }
 
 /* ---- 胜负 ---- */
-function checkWin(){ return goalsState.every(g=>g.ice?iceRemain<=0:g.choco?chocoCount()<=0:g.bean?beanState.got>=g.n:g.octo?octoHP<=0:g.remain<=0); }
+function checkWin(){ return goalsState.every(g=>g.ice?iceRemain<=0:g.choco?chocoCount()<=0:g.bean?beanState.got>=g.n:g.octo?octoHP<=0:g.bottle?bottleCount()<=0:g.snail?snailState.got>=g.n:g.remain<=0); }
 async function winSequence(){
   SFX.win();
   // 剩余步数固定奖励：每步+120
@@ -1850,7 +2022,7 @@ function persist(){ try{localStorage.setItem("bubumatch_save",JSON.stringify(sav
 
 /* ---- 可行步检测 & 提示 & 洗牌 ---- */
 function runAt(r,c){
-  const t=board[r][c]; if(!t||t.sp==="rainbow"||t.sp==="bean"||t.sp==="star"||fogMap[r][c]) return false;
+  const t=board[r][c]; if(!t||t.sp==="rainbow"||t.sp==="bean"||t.sp==="star"||t.sp==="sun"||fogMap[r][c]) return false;
   const ok=(rr,cc)=>{ const x=board[rr][cc]; return x&&x.type===t.type&&x.sp!=="rainbow"&&x.sp!=="bean"&&x.sp!=="star"&&!fogMap[rr][cc]; };
   let h=1,v=1;
   for(let i=1;c-i>=0&&ok(r,c-i);i++)h++;
@@ -1874,7 +2046,7 @@ function findPossibleMove(){
       if(r2>=R||c2>=C||blocked(r2,c2)) continue;
       const t1=board[r][c],t2=board[r2][c2];
       if(!t1||!t2) continue;
-      if(t1.sp&&t2.sp&&t1.sp!=="bean"&&t2.sp!=="bean"&&(t1.sp!=="star"||starEnergy>=STAR_MAX)&&(t2.sp!=="star"||starEnergy>=STAR_MAX)) return {a:{r,c},b:{r:r2,c:c2}};
+      if(t1.sp&&t2.sp&&t1.sp!=="bean"&&t2.sp!=="bean"&&t1.sp!=="sun"&&t2.sp!=="sun"&&(t1.sp!=="star"||starEnergy>=STAR_MAX)&&(t2.sp!=="star"||starEnergy>=STAR_MAX)) return {a:{r,c},b:{r:r2,c:c2}};
       board[r][c]=t2;board[r2][c2]=t1;
       const ok=runAt(r,c)||runAt(r2,c2);
       board[r][c]=t1;board[r2][c2]=t2;
@@ -1979,7 +2151,7 @@ function updateGoalsHUD(){
   const box=$("#goals"); box.innerHTML="";
   let sig="";
   goalsState.forEach(g=>{
-    const done=g.ice?iceRemain<=0:g.choco?chocoCount()<=0:g.bean?beanState.got>=g.n:g.octo?octoHP<=0:g.remain<=0;
+    const done=g.ice?iceRemain<=0:g.choco?chocoCount()<=0:g.bean?beanState.got>=g.n:g.octo?octoHP<=0:g.bottle?bottleCount()<=0:g.snail?snailState.got>=g.n:g.remain<=0;
     sig+=done?"1":"0";
     const el=document.createElement("div");
     el.className="goal"+(done?" done":"");
@@ -1991,6 +2163,10 @@ function updateGoalsHUD(){
       el.innerHTML=`<span style="font-size:22px">🌰</span><span>${done?"✓":Math.max(0,g.n-beanState.got)}</span>`;
     }else if(g.octo){
       el.innerHTML=`<span style="font-size:22px">🐙</span><span>${done?"✓":octoHP}</span>`;
+    }else if(g.bottle){
+      el.innerHTML=`<span style="font-size:22px">🍯</span><span>${done?"✓":bottleCount()}</span>`;
+    }else if(g.snail){
+      el.innerHTML=`<span style="font-size:22px">🐌</span><span>${done?"✓":Math.max(0,g.n-snailState.got)}</span>`;
     }else{
       el.innerHTML=`<img src="${SPRITES[g.type]}"><span>${done?"✓":g.remain}</span>`;
     }
@@ -2064,12 +2240,14 @@ function layout(){
   renderCage();
   renderChoco();
   renderOcto();
+  renderBottle();
+  renderSnail();
 }
 function startLevel(i){
   level=i; const lv=LEVELS[i];
   resetLevelItems();
   movesLeft=lv.moves; score=0; displayScore=0; $("#score").textContent="0";
-  goalsState=lv.goals.map(g=>g.ice?{ice:true}:g.choco?{choco:true}:g.bean?{bean:true,n:g.n}:g.octo?{octo:true}:{type:g.type,remain:g.n});
+  goalsState=lv.goals.map(g=>g.ice?{ice:true}:g.choco?{choco:true}:g.bean?{bean:true,n:g.n}:g.octo?{octo:true}:g.bottle?{bottle:true}:g.snail?{snail:true,n:g.n}:{type:g.type,remain:g.n});
   gameOver=false; busy=true; selected=null;
   buildTerrain(lv);
   buildIce(lv.ice);
@@ -2081,6 +2259,8 @@ function startLevel(i){
   renderCage();
   renderChoco();
   renderOcto();
+  renderBottle();
+  renderSnail();
   applyStreakRewards();
   placeCannons(lv.cannons||0);
   lastGoalSig="";
