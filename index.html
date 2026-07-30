@@ -205,6 +205,21 @@ body{
 .snail::before{content:"🐌";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   font-size:calc(var(--ts)*.52);animation:snailBob 1.6s ease-in-out infinite;}
 @keyframes snailBob{0%,100%{transform:translateX(-5%);}50%{transform:translateX(5%);}}
+/* 蜗牛轨道：旁边消除点亮，连通后蜗牛滚过 */
+.track{position:absolute;width:var(--ts);height:var(--ts);z-index:3;pointer-events:none;}
+.track::before{content:"";position:absolute;left:7%;top:7%;width:20%;height:20%;border-radius:50%;
+  background:rgba(120,90,140,.4);box-shadow:0 0 0 2px rgba(255,255,255,.65);}
+.track.on::before{background:#7ac74f;box-shadow:0 0 9px 3px rgba(122,199,79,.85);}
+.track.fin::after{content:"🏁";position:absolute;left:0;top:-4%;font-size:calc(var(--ts)*.3);}
+/* 定向箭头：固定元素，旁边消除触发整行/列消除，可连锁 */
+.arrow{position:absolute;width:var(--ts);height:var(--ts);z-index:3;pointer-events:none;border-radius:12px;
+  background:linear-gradient(145deg,#b9c6ff,#7f96f2);
+  box-shadow:inset 0 0 0 2px rgba(50,70,160,.8),0 2px 5px rgba(50,70,160,.4);}
+.arrow::before{content:"➤";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:calc(var(--ts)*.5);color:#fff;text-shadow:0 1px 3px rgba(40,60,150,.6);}
+.arrow.d2::before{transform:rotate(180deg);}
+.arrow.d3::before{transform:rotate(90deg);}
+.arrow.d4::before{transform:rotate(-90deg);}
 /* 太阳花：可移动不参与匹配，消除充能，满能十字爆发 */
 .tile.sp-sun .face img{display:none;}
 .tile.sp-sun .face{background:radial-gradient(circle at 50% 35%,#ffe89a,#ffb52e 78%);}
@@ -459,7 +474,7 @@ for(let i=8;i<1000;i++){
   // 炮弹布布（从第13关起，困难关和每5关配置）
   if(i>=12&&(hard||i%5===0)) cannons=2;
   // ---- 高阶玩法：全局均匀分布，周期循环出现 ----
-  let fog=false, cageN=0, choco=0, beans=0, bottle=0, snail=0;
+  let fog=false, cageN=0, choco=0, beans=0, bottle=0, snail=0, arrowN=0;
   const star=i%5===2;                                            // 星星瓶：每5关
   const octo=i%9===4;                                            // 章鱼喷墨：每9关
   const sun=i>=16&&i%6===3;                                      // 太阳花：每6关(辅助充能爆发)
@@ -468,13 +483,15 @@ for(let i=8;i<1000;i++){
   if(i%6===4) choco=3+i%2;                                       // 巧克力：每6关
   if(i%6===1) beans=2+i%3;                                       // 金豆荚：每6关
   if(i>=15&&i%7===5) bottle=3+i%2;                               // 蜂蜜瓶：每7关
-  if(i>=18&&i%9===7) snail=2;                                    // 蜗牛回家：每9关
+  if(i>=18&&i%9===7) snail=2;                                    // 蜗牛轨道：每9关
+  if(i>=20&&i%8===6) arrowN=2;                                   // 定向箭头：每8关
   if(i%9===5){ fog=true; cageN=Math.max(cageN,6); }              // 组合：云+锁
   if(i%11===7){ choco=Math.max(choco,3); fog=true; }             // 组合：云+巧克力
   if(i%12===9){ beans=Math.max(beans,3); cageN=Math.max(cageN,8); } // 组合：锁+豆荚
   if(i%10===6){ fog=true; choco=Math.max(choco,4); beans=Math.max(beans,2); } // 云+巧克力+豆荚 三重奏
   if(i>=40&&i%13===10){ bottle=Math.max(bottle,4); fog=true; }   // 组合：云+蜂蜜瓶
   if(i>=60&&i%14===12){ snail=Math.max(snail,3); beans=Math.max(beans,2); } // 组合：蜗牛+豆荚
+  if(i>=50&&i%12===11){ arrowN=Math.max(arrowN,3); cageN=Math.max(cageN,5); } // 组合：箭头+锁
   if((fog||cageN)&&ice==='full') ice='cross'; // 满屏冰会挤掉云层/锁链落点，降为中字冰
   if(cageN&&shape==='cross') cageN=Math.min(cageN,6); // 十字棋盘仅28格，锁链限量
   const goals=[];
@@ -496,11 +513,11 @@ for(let i=8;i<1000;i++){
   let moves=hard?22+i%3:20+i%4;
   if(ice==='full') moves+=6; // 满屏冰补步数
   if(portals) moves+=2;      // 分裂地形补步数
-  if(fog) moves+=3; if(cageN) moves+=3; if(choco) moves+=4; if(beans) moves+=4; if(octo) moves+=4; if(bottle) moves+=3; if(snail) moves+=4; // 高阶玩法补步数
+  if(fog) moves+=3; if(cageN) moves+=3; if(choco) moves+=4; if(beans) moves+=4; if(octo) moves+=4; if(bottle) moves+=3; if(snail) moves+=6; if(arrowN) moves+=2; // 高阶玩法补步数
   // 星级线：100关后放缓增长，保证3星可达
   const base=700+Math.min(i,100)*50+Math.max(0,i-100)*5;
   const m2=i>=100?1.6:1.7, m3=i>=100?2.1:2.6;
-  LEVELS.push({moves, colors, ice, goals, hard, shape, portals, cannons, fog, cage:cageN, choco, beans, star, octo, bottle, sun, snail,
+  LEVELS.push({moves, colors, ice, goals, hard, shape, portals, cannons, fog, cage:cageN, choco, beans, star, octo, bottle, sun, snail, arrow:arrowN,
     stars:[base,Math.round(base*m2),Math.round(base*m3)]});
 }
 
@@ -524,9 +541,14 @@ let chocoClearedThisTurn = false;
 let bottleMap = Array.from({length:R},()=>Array(C).fill(0));    // 蜂蜜瓶 0=无 1=裂纹 2=完整
 let sunEnergy = 0;              // 太阳花能量
 const SUN_MAX = 20;             // 太阳花满能量所需消除数
-let snails = [];                // 蜗牛列表 [{r,c}]
+let snails = [];                // 蜗牛列表 [{r,c}]（同时只有1只在轨道上）
 let snailMap = Array.from({length:R},()=>Array(C).fill(false)); // 蜗牛占据格
 let snailState = {need:0,got:0};// 蜗牛回家目标
+let snailTrack = [];            // 蜗牛轨道 [{r,c}...] 起点->终点
+let trackSet = new Set();       // 轨道格 key 集合
+let trackOn = [];               // trackOn[r][c] = 轨道格已点亮
+let arrowMap = Array.from({length:R},()=>Array(C).fill(0));     // 定向箭头 0=无 1→ 2← 3↓ 4↑
+let arrowTriggered = new Set(); // 本回合被波及待发射的箭头
 let tileIdSeq = 1;
 let TS = 64;
 let level = 0;
@@ -825,12 +847,17 @@ async function useItemAt(kind,p){
     else if(fogMap[p.r][p.c]) bag.fog.add(key(p.r,p.c));
     if(iceMap[p.r][p.c]>0) bag.ice.add(key(p.r,p.c));
     if(bag.ice.size||bag.fog.size||bag.choco.size||bag.octo.size||bag.bottle.size){ applyAdjHits(bag); }
-    else if(snailMap[p.r][p.c]){
-      const s=snails.find(x=>x.r===p.r&&x.c===p.c);
-      if(s&&tryMoveSnail(s)){ renderSnail(); burst(s.r,s.c,3,1); toast("蜗牛加速前进！"); }
+    else if(snailMap[p.r][p.c]&&snails.length){
+      // 点亮前方2格轨道并冲刺
+      const s=snails[0];
+      let idx=snailTrack.findIndex(x=>x.r===s.r&&x.c===s.c), lit=0;
+      for(let i=idx+1;i<snailTrack.length&&lit<2;i++){ const q=snailTrack[i]; if(!trackOn[q.r][q.c]){ trackOn[q.r][q.c]=true; lit++; burst(q.r,q.c,3,.7); } }
+      renderTrack();
+      if(lit){ toast("蜗牛冲刺！"); await snailRoll(); }
       else toast("蜗牛前面被挡住了");
       SFX.click();
     }
+    else if(arrowMap[p.r][p.c]){ arrowTriggered.add(key(p.r,p.c)); await fireArrows(); }
     else if(ht&&ht.sp==="sun"){ chargeSun(6); toast("太阳花充能 +6"); SFX.create(); }
     else if(cageMap[p.r][p.c]){ cageMap[p.r][p.c]=false; renderCage(); burst(p.r,p.c,2,.9); SFX.ice(); }
     else if(board[p.r][p.c]){ SFX.bomb(); await clearAndSettle([{r:p.r,c:p.c}],"🔨小锤",20); }
@@ -855,6 +882,8 @@ async function useItemAt(kind,p){
     await sleep(280);
     await resolveBoard(null);
   }
+  await fireArrows();
+  await snailRoll();
   await sunBlastIfReady();
   if(checkWin()){ gameOver=true; await sleep(350); await winSequence(); return; }
   busy=false; scheduleHint();
@@ -1137,11 +1166,17 @@ function buildMechanics(lv){
   sunEnergy=0;
   snails=[]; snailMap=Array.from({length:R},()=>Array(C).fill(false));
   snailState={need:lv.snail||0,got:0};
+  snailTrack=[]; trackSet=new Set();
+  trackOn=Array.from({length:R},()=>Array(C).fill(false));
+  arrowMap=Array.from({length:R},()=>Array(C).fill(0));
+  arrowTriggered=new Set();
+  // 蜗牛轨道最先规划，其他机制避开轨道格
+  if(lv.snail){ snailTrack=genSnailTrack(); snailTrack.forEach(p=>trackSet.add(key(p.r,p.c))); }
   const pickN=(n,filter)=>{
     const cells=[];
     for(let r=0;r<R;r++)for(let c=0;c<C;c++){
       const t=board[r][c];
-      if(boardMask[r][c]&&t&&!t.sp&&!iceMap[r][c]&&!fogMap[r][c]&&!cageMap[r][c]&&!chocoMap[r][c]&&!octoMap[r][c]&&!bottleMap[r][c]&&!snailMap[r][c]&&(!filter||filter(r,c))) cells.push({r,c});
+      if(boardMask[r][c]&&t&&!t.sp&&!iceMap[r][c]&&!fogMap[r][c]&&!cageMap[r][c]&&!chocoMap[r][c]&&!octoMap[r][c]&&!bottleMap[r][c]&&!snailMap[r][c]&&!arrowMap[r][c]&&!trackSet.has(r+","+c)&&(!filter||filter(r,c))) cells.push({r,c});
     }
     const out=[];
     for(let i=0;i<n&&cells.length;i++){ const j=Math.floor(Math.random()*cells.length); out.push(cells.splice(j,1)[0]); }
@@ -1163,9 +1198,15 @@ function buildMechanics(lv){
     bottleMap[p.r][p.c]=2;
     const t=board[p.r][p.c]; if(t){ board[p.r][p.c]=null; t.el.remove(); }
   });
-  // 蜗牛：顶部出发，每回合向下爬一格，到底部出口回家
-  if(lv.snail) pickN(lv.snail,(r,c)=>r<=1).forEach(p=>{
-    snailMap[p.r][p.c]=true; snails.push({r:p.r,c:p.c});
+  // 蜗牛：放上轨道起点
+  if(lv.snail&&snailTrack.length){
+    const p=snailTrack[0];
+    snailMap[p.r][p.c]=true; snails=[{r:p.r,c:p.c}];
+    const t=board[p.r][p.c]; if(t){ board[p.r][p.c]=null; t.el.remove(); }
+  }
+  // 定向箭头：固定元素，旁边消除触发，朝指向清空整行/列，可连锁
+  if(lv.arrow) pickN(lv.arrow,(r,c)=>r>=2&&r<=R-3).forEach(p=>{
+    arrowMap[p.r][p.c]=1+Math.floor(Math.random()*4);
     const t=board[p.r][p.c]; if(t){ board[p.r][p.c]=null; t.el.remove(); }
   });
   // 星星瓶：随机落一格，消除攒能量，满后与任意棋子交换吸入同色
@@ -1241,7 +1282,29 @@ async function sunBlastIfReady(){
   sunBlasting=false;
   sunEnergy=0; renderSun(st);
 }
-/* ---- 蜗牛：每回合向下爬一格，到底部出口回家 ---- */
+/* ---- 蜗牛轨道：旁边消除点亮轨道格，格子连起来蜗牛一路滚到终点 ---- */
+function genSnailTrack(){
+  // 从顶部随机列出发，每步向下/斜下蜿蜒到底部
+  for(let attempt=0;attempt<12;attempt++){
+    const c0=Math.floor(Math.random()*C);
+    if(!boardMask[0][c0]) continue;
+    const path=[{r:0,c:c0}]; let r=0,c=c0;
+    while(r<R-1){
+      const opts=[];
+      if(boardMask[r+1][c]) opts.push(0,0,0);
+      if(c>0&&boardMask[r+1][c-1]) opts.push(-1);
+      if(c<C-1&&boardMask[r+1][c+1]) opts.push(1);
+      if(!opts.length) break;
+      c+=opts[Math.floor(Math.random()*opts.length)]; r++;
+      path.push({r,c});
+    }
+    if(r>=R-1) return path;
+  }
+  // 异形棋盘退化：中间列直线（跳过空洞）
+  const c=Math.floor(C/2), path=[];
+  for(let r=0;r<R;r++) if(boardMask[r][c]) path.push({r,c});
+  return path;
+}
 function renderSnail(){
   boardEl.querySelectorAll(".snail").forEach(e=>e.remove());
   snails.forEach(s=>{
@@ -1250,52 +1313,102 @@ function renderSnail(){
     boardEl.appendChild(el);
   });
 }
-function tryMoveSnail(s){
-  for(const [dr,dc] of [[1,0],[1,-1],[1,1]]){
-    const rr=s.r+dr,cc=s.c+dc;
-    if(rr<0||rr>=R||cc<0||cc>=C||!boardMask[rr][cc]) continue;
-    if(fogMap[rr][cc]||cageMap[rr][cc]||chocoMap[rr][cc]||bottleMap[rr][cc]||octoMap[rr][cc]||snailMap[rr][cc]) continue;
-    const t=board[rr][cc];
-    if(!t||t.sp) continue;
-    snailMap[s.r][s.c]=false; snailMap[rr][cc]=true;
-    board[s.r][s.c]=t; t.r=s.r; t.c=s.c; board[rr][cc]=null;
-    placeTile(t);
-    s.r=rr; s.c=cc;
-    return true;
-  }
-  return false;
+function renderTrack(){
+  boardEl.querySelectorAll(".track").forEach(e=>e.remove());
+  snailTrack.forEach((p,i)=>{
+    const el=document.createElement("div");
+    el.className="track"+(trackOn[p.r][p.c]?" on":"")+(i===snailTrack.length-1?" fin":"");
+    el.style.transform=`translate(${p.c*TS}px,${p.r*TS}px)`;
+    boardEl.appendChild(el);
+  });
 }
-async function snailCrawl(){
-  if(!snails.length) return;
+/* 消除点及周围8格内的轨道格被点亮（永久保持） */
+function activateTrackAround(r,c){
+  if(!snailTrack.length) return;
+  let lit=false;
+  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+    const rr=r+dr,cc=c+dc;
+    if(rr<0||rr>=R||cc<0||cc>=C) continue;
+    if(trackSet.has(rr+","+cc)&&!trackOn[rr][cc]){ trackOn[rr][cc]=true; lit=true; burst(rr,cc,3,.55); }
+  }
+  if(lit) renderTrack();
+}
+const snailBlocked=(r,c)=>fogMap[r][c]||cageMap[r][c]||chocoMap[r][c]||bottleMap[r][c]>0||octoMap[r][c]||arrowMap[r][c]>0;
+async function snailRoll(){
+  if(!snails.length||!snailTrack.length) return;
+  const s=snails[0];
+  let idx=snailTrack.findIndex(p=>p.r===s.r&&p.c===s.c);
+  if(idx<0) idx=0;
   let moved=false;
-  for(const s of [...snails]) if(tryMoveSnail(s)) moved=true;
-  if(moved){ renderSnail(); await sleep(160); }
-  // 出口计算忽略蜗牛自身占位（否则蜗牛格被当成阻断，永远到不了出口）
-  const exits=[];
-  for(const chain of chains){
-    let seg=[];
-    const flush=()=>{ if(seg.length){ exits.push(seg[seg.length-1]); seg=[]; } };
-    for(const cell of chain){
-      if(chocoMap[cell.r][cell.c]||cageMap[cell.r][cell.c]||octoMap[cell.r][cell.c]||bottleMap[cell.r][cell.c]>0) flush();
-      else seg.push(cell);
-    }
-    flush();
-  }
-  const exitSet=new Set(exits.map(p=>key(p.r,p.c)));
-  const got=snails.filter(s=>exitSet.has(key(s.r,s.c)));
-  if(!got.length) return;
-  for(const s of got){
-    snails.splice(snails.indexOf(s),1);
+  while(idx+1<snailTrack.length){
+    const nx=snailTrack[idx+1];
+    if(!trackOn[nx.r][nx.c]||snailBlocked(nx.r,nx.c)) break;
+    const t=board[nx.r][nx.c];
+    if(t&&t.sp) break; // 特殊棋子挡路
     snailMap[s.r][s.c]=false;
-    snailState.got++;
-    addScore(500);
-    floatText("蜗牛到家 +500",s.c*TS+TS/2,s.r*TS,"#7ac74f",20);
-    burst(s.r,s.c,3,1.2);
-    SFX.create();
+    if(t){ board[s.r][s.c]=t; t.r=s.r; t.c=s.c; placeTile(t); }
+    snailMap[nx.r][nx.c]=true;
+    s.r=nx.r; s.c=nx.c;
+    idx++; moved=true;
+    renderSnail(); SFX.click();
+    await sleep(120);
   }
+  const fin=snailTrack[snailTrack.length-1];
+  if(s.r!==fin.r||s.c!==fin.c) return;
+  // 到达终点
+  snails=[];
+  snailMap[fin.r][fin.c]=false;
+  snailState.got++;
+  addScore(500);
+  floatText("蜗牛到家 +500",fin.c*TS+TS/2,fin.r*TS,"#7ac74f",20);
+  burst(fin.r,fin.c,3,1.2);
+  SFX.create();
   renderSnail(); updateGoalsHUD();
-  await sleep(200);
-  await collapseAndRefill(); // 补蜗牛留下的空格
+  await sleep(220);
+  if(snailState.got<snailState.need){
+    // 下一只蜗牛出发：轨道灯重置
+    trackOn=Array.from({length:R},()=>Array(C).fill(false));
+    const p=snailTrack[0];
+    const t=board[p.r][p.c];
+    if(t){ board[p.r][p.c]=null; t.el.remove(); }
+    snailMap[p.r][p.c]=true; snails=[{r:p.r,c:p.c}];
+    renderTrack(); renderSnail();
+    floatText("下一只蜗牛出发！",p.c*TS+TS/2,(p.r+1.5)*TS,"#7ac74f",18);
+  }
+  await collapseAndRefill(); // 补空格
+}
+/* ---- 定向箭头：旁边消除触发，朝指向清空整行/列，光束命中箭头连锁 ---- */
+function renderArrow(){
+  boardEl.querySelectorAll(".arrow").forEach(e=>e.remove());
+  for(let r=0;r<R;r++)for(let c=0;c<C;c++){
+    if(!arrowMap[r]||!arrowMap[r][c]) continue;
+    const el=document.createElement("div"); el.className="arrow d"+arrowMap[r][c];
+    el.style.transform=`translate(${c*TS}px,${r*TS}px)`;
+    boardEl.appendChild(el);
+  }
+}
+async function fireArrows(){
+  if(!arrowTriggered.size) return;
+  const q=[...arrowTriggered]; arrowTriggered.clear();
+  const fired=new Set();
+  const DIRS={1:[0,1],2:[0,-1],3:[1,0],4:[-1,0]};
+  while(q.length){
+    const k=q.shift(); if(fired.has(k)) continue; fired.add(k);
+    const [r,c]=k.split(",").map(Number);
+    const d=arrowMap[r][c]; if(!d) continue;
+    const [dr,dc]=DIRS[d];
+    const seed=[]; let rr=r+dr,cc=c+dc;
+    while(rr>=0&&rr<R&&cc>=0&&cc<C&&boardMask[rr][cc]){
+      if(arrowMap[rr][cc]) q.push(rr+","+cc); // 连锁触发
+      if(bottleMap[rr][cc]>0||chocoMap[rr][cc]||octoMap[rr][cc]||snailMap[rr][cc]) break; // 障碍挡光束
+      if(board[rr][cc]) seed.push({r:rr,c:cc});
+      rr+=dr; cc+=dc;
+    }
+    beamFX(r,c,d===1||d===2?"h":"v"); SFX.line(); burst(r,c,5,.9);
+    if(seed.length) await clearAndSettle(seed,"➤箭头",20);
+    // 发射造成的消除可能波及更多箭头
+    if(arrowTriggered.size){ q.push(...arrowTriggered); arrowTriggered.clear(); }
+  }
 }
 function renderCage(){
   boardEl.querySelectorAll(".cage").forEach(e=>e.remove());
@@ -1321,7 +1434,7 @@ function renderChoco(){
   }
 }
 /* 消除波及：冰/云/墨/巧克力/章鱼 统一收集 */
-function newAdjBag(){ return {ice:new Set(),fog:new Set(),choco:new Set(),octo:new Set(),bottle:new Set()}; }
+function newAdjBag(){ return {ice:new Set(),fog:new Set(),choco:new Set(),octo:new Set(),bottle:new Set(),arrow:new Set()}; }
 function collectAdjHits(r,c,bag){
   for(const [dr,dc] of [[0,0],[1,0],[-1,0],[0,1],[0,-1]]){
     const rr=r+dr,cc=c+dc;
@@ -1332,6 +1445,7 @@ function collectAdjHits(r,c,bag){
     if(chocoMap[rr]&&chocoMap[rr][cc]) bag.choco.add(k);
     if(octoMap[rr]&&octoMap[rr][cc]) bag.octo.add(k);
     if(bottleMap[rr]&&bottleMap[rr][cc]>0) bag.bottle.add(k);
+    if(arrowMap[rr]&&arrowMap[rr][cc]) bag.arrow.add(k);
   }
 }
 function applyAdjHits(bag){
@@ -1371,6 +1485,10 @@ function applyAdjHits(bag){
     if(broke) SFX.create();
     updateGoalsHUD();
   }
+  if(bag.arrow.size){
+    // 箭头不损坏，标记待发射（afterTurn/道具结算后统一 fireArrows）
+    bag.arrow.forEach(k=>{ arrowTriggered.add(k); const [r,c]=k.split(",").map(Number); burst(r,c,5,.7); });
+  }
 }
 /* 巧克力蔓延：一步内没消到巧克力就向外侵蚀一格 */async function chocoSpread(){
   if(!anyChoco()||chocoClearedThisTurn) return;
@@ -1402,7 +1520,7 @@ function exitCells(){
     let seg=[];
     const flush=()=>{ if(seg.length){ exits.push(seg[seg.length-1]); seg=[]; } };
     for(const cell of chain){
-      if(chocoMap[cell.r][cell.c]||cageMap[cell.r][cell.c]||octoMap[cell.r][cell.c]||bottleMap[cell.r][cell.c]>0||snailMap[cell.r][cell.c]) flush();
+      if(chocoMap[cell.r][cell.c]||cageMap[cell.r][cell.c]||octoMap[cell.r][cell.c]||bottleMap[cell.r][cell.c]>0||snailMap[cell.r][cell.c]||arrowMap[cell.r][cell.c]>0) flush();
       else seg.push(cell);
     }
     flush();
@@ -1608,7 +1726,7 @@ async function resolveBoard(prefer){
     let flyers=0;
     for(const [k,tile] of clearMap){
       const [r,c]=k.split(",").map(Number);
-      collectAdjHits(r,c,bag);
+      collectAdjHits(r,c,bag); activateTrackAround(r,c);
       if(intercepted.has(k)) continue;
       burst(r,c,tile.type,.8+combo*.15);
       tile.el.classList.add("elim");
@@ -1654,7 +1772,7 @@ async function collapseAndRefill(){
     const segs=[];
     let seg=[];
     for(const cell of chain){
-      if(chocoMap[cell.r][cell.c]||cageMap[cell.r][cell.c]||octoMap[cell.r][cell.c]||bottleMap[cell.r][cell.c]>0||snailMap[cell.r][cell.c]){ if(seg.length){ segs.push(seg); seg=[]; } }
+      if(chocoMap[cell.r][cell.c]||cageMap[cell.r][cell.c]||octoMap[cell.r][cell.c]||bottleMap[cell.r][cell.c]>0||snailMap[cell.r][cell.c]||arrowMap[cell.r][cell.c]>0){ if(seg.length){ segs.push(seg); seg=[]; } }
       else seg.push(cell);
     }
     if(seg.length) segs.push(seg);
@@ -1773,7 +1891,7 @@ async function clearAndSettle(seed,label,perTile,extraTiles){
   let clearedNow=0;
   for(const [k,tile] of clearMap){
     const [r,c]=k.split(",").map(Number);
-    collectAdjHits(r,c,bag);
+    collectAdjHits(r,c,bag); activateTrackAround(r,c);
     if(intercepted.has(k)) continue;
     if(board[r][c]===tile) board[r][c]=null;
     goalsState.forEach(g=>{ if(g.type===tile.type&&g.remain>0) g.remain--; });
@@ -1948,7 +2066,8 @@ async function afterTurn(){
   turnCount++;
   await chocoSpread();
   await octoSpray();
-  await snailCrawl();
+  await fireArrows();
+  await snailRoll();
   await sunBlastIfReady();
   updateGoalsHUD();
   settleTurnReward();
@@ -2246,6 +2365,8 @@ function layout(){
   renderOcto();
   renderBottle();
   renderSnail();
+  renderTrack();
+  renderArrow();
 }
 function startLevel(i){
   level=i; const lv=LEVELS[i];
@@ -2265,6 +2386,8 @@ function startLevel(i){
   renderOcto();
   renderBottle();
   renderSnail();
+  renderTrack();
+  renderArrow();
   applyStreakRewards();
   placeCannons(lv.cannons||0);
   lastGoalSig="";
