@@ -399,8 +399,13 @@ for(let i=8;i<1000;i++){
   const goals=[];
   if(ice) goals.push({ice:true});
   // 困难关：目标量下调、上限更低，不再额外加量
-  goals.push({type:i%colors,n:Math.min(hard?32:38,16+Math.floor(i*.5)+(hard?0:0))});
-  if(!ice||hard) goals.push({type:(i+3)%colors,n:Math.min(hard?26:33,14+Math.floor(i*.36))});
+  // 异形棋盘按可玩面积等比缩减目标（格少=>各色棋子出现少）
+  const areaScale=(shape?({diamond:40,donut:60,corners:48,cross:28,split:52}[shape]||64):64)/64;
+  let g1=Math.min(hard?32:38,16+Math.floor(i*.5));
+  let g2=Math.min(hard?26:33,14+Math.floor(i*.36));
+  if(areaScale<1){ g1=Math.max(10,Math.round(g1*areaScale)); g2=Math.max(8,Math.round(g2*areaScale)); }
+  goals.push({type:i%colors,n:g1});
+  if(!ice||hard) goals.push({type:(i+3)%colors,n:g2});
   if(choco) goals.push({choco:true});
   if(beans) goals.push({bean:true,n:beans});
   // 困难关步数反多于普通关：6色+双目标+炮弹干扰，需要更多容错
